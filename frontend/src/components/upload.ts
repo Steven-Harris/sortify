@@ -1,6 +1,5 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
-import { theme, buttonStyles, cardStyles } from '../styles/theme.js';
 import { apiService, type UploadResponse, type ProcessResponse } from '../services/api.js';
 
 export interface UploadFile {
@@ -22,179 +21,394 @@ export interface UploadFile {
  */
 @customElement('sortify-upload')
 export class SortifyUpload extends LitElement {
-  static styles = [
-    theme,
-    buttonStyles,
-    cardStyles,
-    css`
-      :host {
-        display: block;
-      }
+  static styles = css`
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    :host {
+      display: block;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --primary-400: #60a5fa;
+      --primary-500: #3b82f6;
+      --primary-600: #2563eb;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+      --green-400: #4ade80;
+      --green-500: #22c55e;
+      --red-400: #f87171;
+      --red-500: #ef4444;
+      --yellow-400: #facc15;
+      --yellow-500: #eab308;
+    }
 
+    .upload-container {
+      max-width: 56rem; /* max-w-4xl */
+      margin: 0 auto;
+      padding: 1.5rem; /* p-6 */
+    }
+
+    .dropzone {
+      position: relative;
+      border: 2px dashed var(--slate-600);
+      border-radius: 1rem; /* rounded-2xl */
+      padding: 3rem 2rem; /* py-12 px-8 */
+      text-align: center;
+      transition: all 0.2s ease-in-out;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--slate-800) 0%, var(--slate-700) 100%);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    .dropzone:hover,
+    .dropzone.drag-over {
+      border-color: var(--primary-500);
+      background: linear-gradient(135deg, var(--slate-700) 0%, var(--slate-600) 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+    }
+
+    .dropzone-content {
+      pointer-events: none;
+    }
+
+    .dropzone-icon {
+      width: 4rem; /* w-16 */
+      height: 4rem; /* h-16 */
+      margin: 0 auto 1.5rem; /* mx-auto mb-6 */
+      background: linear-gradient(135deg, var(--primary-500), var(--primary-400));
+      border-radius: 1rem; /* rounded-2xl */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem; /* text-2xl */
+      color: white;
+      box-shadow: 0 8px 25px 0 rgba(59, 130, 246, 0.4);
+    }
+
+    .dropzone-title {
+      font-size: 1.875rem; /* text-3xl */
+      font-weight: 700; /* font-bold */
+      margin-bottom: 0.75rem; /* mb-3 */
+      color: var(--slate-100);
+      line-height: 1.2;
+    }
+
+    .dropzone-subtitle {
+      color: var(--slate-400);
+      margin-bottom: 2rem; /* mb-8 */
+      font-size: 1.125rem; /* text-lg */
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    .upload-button {
+      background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
+      color: white;
+      border: none;
+      border-radius: 0.75rem; /* rounded-xl */
+      padding: 0.875rem 2rem; /* py-3.5 px-8 */
+      font-size: 1rem; /* text-base */
+      font-weight: 600; /* font-semibold */
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      box-shadow: 0 8px 25px 0 rgba(59, 130, 246, 0.4);
+      font-family: inherit;
+    }
+
+    .upload-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.6);
+    }
+
+    .upload-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .upload-queue {
+      margin-top: 2.5rem; /* mt-10 */
+    }
+
+    .queue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem; /* mb-6 */
+      padding-bottom: 1rem; /* pb-4 */
+      border-bottom: 1px solid var(--slate-700);
+    }
+
+    .queue-title {
+      font-size: 1.5rem; /* text-2xl */
+      font-weight: 700; /* font-bold */
+      margin: 0;
+      color: var(--slate-100);
+    }
+
+    .queue-actions {
+      display: flex;
+      gap: 0.75rem; /* gap-3 */
+    }
+
+    .btn {
+      border: none;
+      border-radius: 0.5rem; /* rounded-lg */
+      padding: 0.5rem 1rem; /* py-2 px-4 */
+      font-size: 0.875rem; /* text-sm */
+      font-weight: 500; /* font-medium */
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      font-family: inherit;
+    }
+
+    .btn-secondary {
+      background: var(--slate-700);
+      color: var(--slate-300);
+      border: 1px solid var(--slate-600);
+    }
+
+    .btn-secondary:hover {
+      background: var(--slate-600);
+      color: var(--slate-100);
+      transform: translateY(-1px);
+    }
+
+    .upload-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem; /* gap-4 */
+      padding: 1.5rem; /* p-6 */
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 1rem; /* rounded-2xl */
+      margin-bottom: 0.75rem; /* mb-3 */
+      transition: all 0.2s ease-in-out;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    .upload-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+      border-color: var(--slate-600);
+    }
+
+    .file-icon {
+      width: 3rem; /* w-12 */
+      height: 3rem; /* h-12 */
+      border-radius: 0.75rem; /* rounded-xl */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem; /* text-xl */
+      flex-shrink: 0;
+    }
+
+    .file-icon.image {
+      background: linear-gradient(135deg, var(--green-500), var(--green-400));
+      color: white;
+    }
+
+    .file-icon.video {
+      background: linear-gradient(135deg, #a855f7, #8b5cf6);
+      color: white;
+    }
+
+    .file-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .file-name {
+      font-weight: 600; /* font-semibold */
+      margin-bottom: 0.25rem; /* mb-1 */
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--slate-100);
+      font-size: 1rem; /* text-base */
+    }
+
+    .file-details {
+      font-size: 0.875rem; /* text-sm */
+      color: var(--slate-400);
+      font-weight: 400;
+    }
+
+    .progress-container {
+      flex: 0 0 12rem; /* flex-none w-48 */
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 0.5rem; /* h-2 */
+      background: var(--slate-700);
+      border-radius: 9999px; /* rounded-full */
+      overflow: hidden;
+      margin-bottom: 0.5rem; /* mb-2 */
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary-500), var(--primary-400));
+      transition: width 0.3s ease-in-out;
+      border-radius: 9999px; /* rounded-full */
+    }
+
+    .progress-text {
+      font-size: 0.75rem; /* text-xs */
+      color: var(--slate-400);
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .status-badge {
+      flex: 0 0 auto;
+      width: 2.5rem; /* w-10 */
+      height: 2.5rem; /* h-10 */
+      border-radius: 9999px; /* rounded-full */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem; /* text-sm */
+      font-weight: 500;
+    }
+
+    .status-pending {
+      background: var(--slate-700);
+      color: var(--slate-400);
+    }
+
+    .status-uploading {
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--primary-400);
+      animation: pulse 2s infinite;
+    }
+
+    .status-processing {
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--primary-400);
+      animation: spin 1s linear infinite;
+    }
+
+    .status-completed {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--green-400);
+    }
+
+    .status-error {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--red-400);
+    }
+
+    .status-paused {
+      background: rgba(234, 179, 8, 0.2);
+      color: var(--yellow-400);
+    }
+
+    .item-actions {
+      flex: 0 0 auto;
+      display: flex;
+      gap: 0.5rem; /* gap-2 */
+    }
+
+    .action-btn {
+      width: 2rem; /* w-8 */
+      height: 2rem; /* h-8 */
+      border: none;
+      border-radius: 0.5rem; /* rounded-lg */
+      background: var(--slate-700);
+      color: var(--slate-400);
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem; /* text-sm */
+    }
+
+    .action-btn:hover {
+      background: var(--slate-600);
+      color: var(--slate-200);
+      transform: scale(1.05);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem; /* py-12 px-4 */
+      color: var(--slate-400);
+      background: var(--slate-800);
+      border-radius: 1rem; /* rounded-2xl */
+      border: 1px dashed var(--slate-600);
+      margin-top: 2rem; /* mt-8 */
+    }
+
+    .empty-state-icon {
+      font-size: 3rem; /* text-5xl */
+      margin-bottom: 1rem; /* mb-4 */
+      opacity: 0.6;
+    }
+
+    .empty-state-text {
+      font-size: 1.125rem; /* text-lg */
+      font-weight: 500;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
       .upload-container {
-        max-width: 800px;
-        margin: 0 auto;
+        padding: 1rem; /* p-4 */
       }
 
       .dropzone {
-        border: 2px dashed var(--color-border);
-        border-radius: var(--border-radius-lg);
-        padding: var(--spacing-xxl);
-        text-align: center;
-        transition: all var(--transition-normal);
-        cursor: pointer;
-        background-color: var(--color-surface);
-      }
-
-      .dropzone:hover,
-      .dropzone.drag-over {
-        border-color: var(--color-primary);
-        background-color: rgba(22, 71, 115, 0.1);
-      }
-
-      .dropzone-content {
-        pointer-events: none;
-      }
-
-      .dropzone-icon {
-        font-size: 4rem;
-        margin-bottom: var(--spacing-md);
-        opacity: 0.7;
+        padding: 2rem 1rem; /* py-8 px-4 */
       }
 
       .dropzone-title {
-        font-size: var(--font-size-xl);
-        font-weight: var(--font-weight-semibold);
-        margin-bottom: var(--spacing-sm);
-        color: var(--color-text-primary);
-      }
-
-      .dropzone-subtitle {
-        color: var(--color-text-secondary);
-        margin-bottom: var(--spacing-lg);
-      }
-
-      .file-input {
-        display: none;
-      }
-
-      .upload-queue {
-        margin-top: var(--spacing-xl);
-      }
-
-      .queue-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: var(--spacing-md);
-      }
-
-      .queue-title {
-        font-size: var(--font-size-lg);
-        font-weight: var(--font-weight-semibold);
-        margin: 0;
-      }
-
-      .queue-actions {
-        display: flex;
-        gap: var(--spacing-sm);
+        font-size: 1.5rem; /* text-2xl */
       }
 
       .upload-item {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-md);
-        padding: var(--spacing-md);
-        background-color: var(--color-surface-elevated);
-        border: 1px solid var(--color-border);
-        border-radius: var(--border-radius-md);
-        margin-bottom: var(--spacing-sm);
-      }
-
-      .file-info {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .file-name {
-        font-weight: var(--font-weight-medium);
-        margin-bottom: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .file-details {
-        font-size: var(--font-size-sm);
-        color: var(--color-text-secondary);
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem; /* gap-4 */
       }
 
       .progress-container {
-        flex: 0 0 200px;
+        flex: 1;
       }
 
-      .progress-bar {
-        width: 100%;
-        height: 6px;
-        background-color: var(--color-surface);
-        border-radius: 3px;
-        overflow: hidden;
-        margin-bottom: 4px;
+      .queue-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem; /* gap-4 */
       }
 
-      .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--color-primary), var(--color-accent-2));
-        transition: width var(--transition-normal);
+      .queue-actions {
+        justify-content: center;
       }
-
-      .progress-text {
-        font-size: var(--font-size-xs);
-        color: var(--color-text-secondary);
-        text-align: center;
-      }
-
-      .status-icon {
-        flex: 0 0 auto;
-        font-size: var(--font-size-lg);
-      }
-
-      .item-actions {
-        flex: 0 0 auto;
-        display: flex;
-        gap: var(--spacing-xs);
-      }
-
-      .status-pending { color: var(--color-text-secondary); }
-      .status-uploading { color: var(--color-primary); }
-      .status-completed { color: var(--color-success); }
-      .status-error { color: var(--color-error); }
-      .status-paused { color: var(--color-warning); }
-
-      .empty-state {
-        text-align: center;
-        padding: var(--spacing-lg);
-        color: var(--color-text-secondary);
-      }
-
-      @media (max-width: 640px) {
-        .upload-item {
-          flex-direction: column;
-          align-items: stretch;
-        }
-
-        .progress-container {
-          flex: 1;
-        }
-
-        .queue-header {
-          flex-direction: column;
-          align-items: stretch;
-          gap: var(--spacing-sm);
-        }
-      }
-    `
-  ];
+    }
+  `;
 
   @property({ type: Boolean })
   disabled = false;
@@ -221,13 +435,21 @@ export class SortifyUpload extends LitElement {
           @drop=${this.handleDrop}
         >
           <div class="dropzone-content">
-            <div class="dropzone-icon">📁</div>
+            <div class="dropzone-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <h3 class="dropzone-title">Drop your photos and videos here</h3>
             <p class="dropzone-subtitle">
-              Or click to browse your files
+              Supports JPG, PNG, GIF, MP4, MOV and more. Up to 100MB per file.
             </p>
             <button 
-              class="btn btn-primary btn-lg"
+              class="upload-button"
               ?disabled=${this.disabled}
             >
               Choose Files
@@ -247,27 +469,29 @@ export class SortifyUpload extends LitElement {
           <div class="upload-queue">
             <div class="queue-header">
               <h4 class="queue-title">
-                Upload Queue (${this.uploadQueue.length} files)
+                Upload Queue
+                <span style="font-weight: 400; color: var(--gray-500); font-size: 1rem;">
+                  ${this.uploadQueue.length} ${this.uploadQueue.length === 1 ? 'file' : 'files'}
+                </span>
               </h4>
               <div class="queue-actions">
                 <button 
-                  class="btn btn-secondary btn-sm"
+                  class="btn btn-secondary"
                   @click=${this.pauseAll}
-                  ?disabled=${!this.isUploading}
                 >
-                  ${this.isUploading ? 'Pause All' : 'Resume All'}
+                  ${this.isUploading ? '⏸️ Pause All' : '▶️ Resume All'}
                 </button>
                 <button 
-                  class="btn btn-secondary btn-sm"
+                  class="btn btn-secondary"
                   @click=${this.clearCompleted}
                 >
-                  Clear Completed
+                  🗑️ Clear Completed
                 </button>
                 <button 
-                  class="btn btn-secondary btn-sm"
+                  class="btn btn-secondary"
                   @click=${this.clearAll}
                 >
-                  Clear All
+                  ❌ Clear All
                 </button>
               </div>
             </div>
@@ -276,7 +500,11 @@ export class SortifyUpload extends LitElement {
           </div>
         ` : html`
           <div class="empty-state">
-            <p>No files selected. Drop some files or click above to get started!</p>
+            <div class="empty-state-icon">📂</div>
+            <p class="empty-state-text">No files selected yet</p>
+            <p style="font-size: 0.875rem; margin-top: 0.5rem; opacity: 0.8;">
+              Drop some files above or click to browse your computer
+            </p>
           </div>
         `}
       </div>
@@ -284,24 +512,44 @@ export class SortifyUpload extends LitElement {
   }
 
   private renderUploadItem(item: UploadFile) {
-    const statusIcons = {
-      pending: '⏳',
-      uploading: '⬆️',
-      completed: '✅',
-      error: '❌',
-      paused: '⏸️',
-      processing: '🔄'
+    const getFileIcon = (file: File) => {
+      if (file.type.startsWith('image/')) {
+        return html`<div class="file-icon image">🖼️</div>`;
+      } else if (file.type.startsWith('video/')) {
+        return html`<div class="file-icon video">🎬</div>`;
+      }
+      return html`<div class="file-icon">📄</div>`;
+    };
+
+    const getStatusBadge = (status: string) => {
+      const badges = {
+        pending: { icon: '⏳', class: 'status-pending' },
+        uploading: { icon: '⬆️', class: 'status-uploading' },
+        processing: { icon: '⚙️', class: 'status-processing' },
+        completed: { icon: '✅', class: 'status-completed' },
+        error: { icon: '❌', class: 'status-error' },
+        paused: { icon: '⏸️', class: 'status-paused' }
+      };
+      
+      const badge = badges[status as keyof typeof badges] || badges.pending;
+      return html`
+        <div class="status-badge ${badge.class}" title="${status}">
+          ${badge.icon}
+        </div>
+      `;
     };
 
     return html`
       <div class="upload-item">
+        ${getFileIcon(item.file)}
+        
         <div class="file-info">
-          <div class="file-name" title=${item.file.name}>
+          <div class="file-name" title="${item.file.name}">
             ${item.file.name}
           </div>
           <div class="file-details">
-            ${this.formatFileSize(item.file.size)} • ${item.file.type || 'Unknown type'}
-            ${item.error ? html` • ${item.error}` : ''}
+            ${this.formatFileSize(item.file.size)} • ${item.file.type.split('/')[0] || 'Unknown'}
+            ${item.error ? html` • <span style="color: var(--red-400);">${item.error}</span>` : ''}
           </div>
         </div>
 
@@ -313,18 +561,18 @@ export class SortifyUpload extends LitElement {
             ></div>
           </div>
           <div class="progress-text">
-            ${item.progress}% ${item.status === 'uploading' ? 'uploading' : ''}
+            ${item.progress}% 
+            ${item.status === 'uploading' ? 'uploading' : ''}
+            ${item.status === 'processing' ? 'processing' : ''}
           </div>
         </div>
 
-        <div class="status-icon status-${item.status}">
-          ${statusIcons[item.status]}
-        </div>
+        ${getStatusBadge(item.status)}
 
         <div class="item-actions">
           ${item.status === 'uploading' ? html`
             <button 
-              class="btn btn-secondary btn-sm"
+              class="action-btn"
               @click=${() => this.pauseUpload(item.id)}
               title="Pause upload"
             >
@@ -332,7 +580,7 @@ export class SortifyUpload extends LitElement {
             </button>
           ` : item.status === 'paused' ? html`
             <button 
-              class="btn btn-secondary btn-sm"
+              class="action-btn"
               @click=${() => this.resumeUpload(item.id)}
               title="Resume upload"
             >
@@ -341,7 +589,7 @@ export class SortifyUpload extends LitElement {
           ` : ''}
           
           <button 
-            class="btn btn-secondary btn-sm"
+            class="action-btn"
             @click=${() => this.removeFromQueue(item.id)}
             title="Remove from queue"
           >

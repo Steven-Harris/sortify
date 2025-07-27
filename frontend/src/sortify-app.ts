@@ -1,6 +1,5 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { theme, globalStyles, buttonStyles, cardStyles } from './styles/theme.js';
 import './components/upload.js';
 
 /**
@@ -9,159 +8,296 @@ import './components/upload.js';
  */
 @customElement('sortify-app')
 export class SortifyApp extends LitElement {
-  static styles = [
-    theme,
-    globalStyles,
-    buttonStyles,
-    cardStyles,
-    css`
-      :host {
-        display: block;
-        min-height: 100vh;
-        background-color: var(--color-background);
-        color: var(--color-text-primary);
-      }
+  static styles = css`
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    :host {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #f8fafc;
+      margin: 0;
+      padding: 0;
+      --primary-400: #60a5fa;
+      --primary-500: #3b82f6;
+      --primary-600: #2563eb;
+      --primary-50: #1e3a8a;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+      --slate-950: #020617;
+    }
 
+    .app-layout {
+      display: grid;
+      grid-template-columns: 16rem 1fr; /* w-64 + flex-1 */
+      width: 100vw;
+      height: 100vh;
+      min-height: 100vh;
+      background: var(--slate-800);
+      box-shadow: none; /* Remove shadow since we're fullscreen */
+      border-radius: 0; /* Remove border radius */
+      margin: 0; /* Remove margin */
+      overflow: hidden;
+      border: none; /* Remove border */
+    }
+
+    .sidebar {
+      background: linear-gradient(180deg, var(--slate-900) 0%, var(--slate-800) 100%);
+      border-right: 1px solid var(--slate-700);
+      padding: 2rem 1.5rem; /* py-8 px-6 */
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logo-section {
+      margin-bottom: 3rem; /* mb-12 */
+      text-align: center;
+    }
+
+    .logo {
+      font-size: 1.875rem; /* text-3xl */
+      font-weight: 800; /* font-extrabold */
+      background: linear-gradient(135deg, var(--primary-400), var(--primary-500));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 0.5rem; /* mb-2 */
+    }
+
+    .logo-subtitle {
+      font-size: 0.875rem; /* text-sm */
+      color: var(--slate-400);
+      font-weight: 500;
+    }
+
+    .nav-menu {
+      flex: 1;
+    }
+
+    .nav-section {
+      margin-bottom: 2rem; /* mb-8 */
+    }
+
+    .nav-section-title {
+      font-size: 0.75rem; /* text-xs */
+      font-weight: 600; /* font-semibold */
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em; /* tracking-wider */
+      margin-bottom: 0.75rem; /* mb-3 */
+      padding-left: 0.75rem; /* pl-3 */
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem; /* gap-3 */
+      padding: 0.75rem; /* p-3 */
+      border-radius: 0.75rem; /* rounded-xl */
+      font-weight: 500; /* font-medium */
+      color: var(--slate-300);
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      margin-bottom: 0.25rem; /* mb-1 */
+    }
+
+    .nav-item:hover {
+      background: var(--slate-700);
+      color: var(--slate-100);
+      transform: translateX(0.25rem); /* translate-x-1 */
+    }
+
+    .nav-item.active {
+      background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
+      color: white;
+      box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.4);
+      transform: translateX(0.25rem); /* translate-x-1 */
+    }
+
+    .nav-icon {
+      width: 1.25rem; /* w-5 */
+      height: 1.25rem; /* h-5 */
+      flex-shrink: 0;
+    }
+
+    .main-content {
+      background: var(--slate-900);
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+      height: 100vh;
+    }
+
+    .header {
+      background: rgba(15, 23, 42, 0.9);
+      border-bottom: 1px solid var(--slate-700);
+      padding: 1.5rem 2rem; /* py-6 px-8 */
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+    }
+
+    .header-title {
+      font-size: 2rem; /* text-3xl */
+      font-weight: 700; /* font-bold */
+      color: var(--slate-100);
+      margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem; /* gap-4 */
+    }
+
+    .header-btn {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-600);
+      color: var(--slate-300);
+      border-radius: 0.75rem; /* rounded-xl */
+      padding: 0.5rem 1rem; /* py-2 px-4 */
+      font-size: 0.875rem; /* text-sm */
+      font-weight: 500; /* font-medium */
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem; /* gap-2 */
+    }
+
+    .header-btn:hover {
+      background: var(--slate-700);
+      color: var(--slate-100);
+      transform: translateY(-1px);
+    }
+
+    .content-area {
+      padding: 2rem; /* p-8 */
+      min-height: calc(100vh - 10rem);
+    }
+
+    .welcome-section {
+      text-align: center;
+      max-width: 48rem; /* max-w-4xl */
+      margin: 0 auto 3rem; /* mx-auto mb-12 */
+    }
+
+    .welcome-title {
+      font-size: 3rem; /* text-5xl */
+      font-weight: 800; /* font-extrabold */
+      margin-bottom: 1rem; /* mb-4 */
+      background: linear-gradient(135deg, var(--slate-100), var(--slate-300));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      line-height: 1.1;
+    }
+
+    .welcome-subtitle {
+      font-size: 1.25rem; /* text-xl */
+      color: var(--slate-400);
+      font-weight: 400;
+      line-height: 1.6;
+      margin-bottom: 2rem; /* mb-8 */
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); /* grid-cols-auto */
+      gap: 2rem; /* gap-8 */
+      margin-top: 3rem; /* mt-12 */
+    }
+
+    .feature-card {
+      background: var(--slate-800);
+      padding: 2rem; /* p-8 */
+      border-radius: 1.5rem; /* rounded-3xl */
+      border: 1px solid var(--slate-700);
+      text-align: center;
+      transition: all 0.2s ease-in-out;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-0.5rem); /* -translate-y-2 */
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+      border-color: var(--slate-600);
+    }
+
+    .feature-icon {
+      width: 4rem; /* w-16 */
+      height: 4rem; /* h-16 */
+      margin: 0 auto 1.5rem; /* mx-auto mb-6 */
+      background: linear-gradient(135deg, var(--primary-500), var(--primary-400));
+      border-radius: 1rem; /* rounded-2xl */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem; /* text-2xl */
+      color: white;
+      box-shadow: 0 8px 25px 0 rgba(59, 130, 246, 0.4);
+    }
+
+    .feature-title {
+      font-size: 1.25rem; /* text-xl */
+      font-weight: 600; /* font-semibold */
+      color: var(--slate-100);
+      margin-bottom: 0.75rem; /* mb-3 */
+    }
+
+    .feature-description {
+      color: var(--slate-400);
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1024px) {
       .app-layout {
-        display: grid;
-        grid-template-columns: 250px 1fr;
-        grid-template-rows: auto 1fr;
-        grid-template-areas: 
-          "sidebar header"
-          "sidebar main";
-        min-height: 100vh;
+        grid-template-columns: 1fr;
+        margin: 0; /* Remove margin on mobile */
+        border-radius: 0; /* Remove border radius on mobile */
       }
 
       .sidebar {
-        grid-area: sidebar;
-        background-color: var(--color-surface);
-        border-right: 1px solid var(--color-border);
-        padding: var(--spacing-lg);
+        display: none;
       }
 
       .header {
-        grid-area: header;
-        background-color: var(--color-surface-elevated);
-        border-bottom: 1px solid var(--color-border);
-        padding: var(--spacing-md) var(--spacing-lg);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-
-      .main-content {
-        grid-area: main;
-        padding: var(--spacing-lg);
-        overflow-y: auto;
-      }
-
-      .logo {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm);
-        margin-bottom: var(--spacing-xl);
-      }
-
-      .logo-icon {
-        width: 32px;
-        height: 32px;
-        background: linear-gradient(135deg, var(--color-primary), var(--color-accent-2));
-        border-radius: var(--border-radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: var(--font-weight-bold);
-        color: white;
-      }
-
-      .logo-text {
-        font-size: var(--font-size-xl);
-        font-weight: var(--font-weight-bold);
-        color: var(--color-text-primary);
-      }
-
-      .nav-menu {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-      }
-
-      .nav-item {
-        margin-bottom: var(--spacing-sm);
-      }
-
-      .nav-link {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm);
-        padding: var(--spacing-sm) var(--spacing-md);
-        border-radius: var(--border-radius-md);
-        text-decoration: none;
-        color: var(--color-text-secondary);
-        transition: all var(--transition-fast);
-        cursor: pointer;
-      }
-
-      .nav-link:hover,
-      .nav-link.active {
-        background-color: var(--color-surface-elevated);
-        color: var(--color-text-primary);
-      }
-
-      .nav-icon {
-        width: 20px;
-        height: 20px;
-        opacity: 0.7;
+        padding: 1rem 1.5rem; /* py-4 px-6 */
       }
 
       .header-title {
-        font-size: var(--font-size-2xl);
-        font-weight: var(--font-weight-semibold);
-        margin: 0;
+        font-size: 1.5rem; /* text-2xl */
       }
 
-      .header-actions {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-md);
-      }
-
-      .welcome-section {
-        text-align: center;
-        max-width: 600px;
-        margin: var(--spacing-xxl) auto;
+      .content-area {
+        padding: 1rem; /* p-4 */
       }
 
       .welcome-title {
-        font-size: var(--font-size-3xl);
-        font-weight: var(--font-weight-bold);
-        margin-bottom: var(--spacing-md);
-        background: linear-gradient(135deg, var(--color-primary), var(--color-accent-2));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        font-size: 2rem; /* text-4xl */
       }
 
       .welcome-subtitle {
-        font-size: var(--font-size-lg);
-        color: var(--color-text-secondary);
-        margin-bottom: var(--spacing-xl);
+        font-size: 1.125rem; /* text-lg */
       }
-
-      @media (max-width: 768px) {
-        .app-layout {
-          grid-template-columns: 1fr;
-          grid-template-areas: 
-            "header"
-            "main";
-        }
-
-        .sidebar {
-          display: none;
-        }
-      }
-    `
-  ];
+    }
+  `;
 
   @state()
   private activeView = 'upload';
@@ -177,40 +313,45 @@ export class SortifyApp extends LitElement {
     return html`
       <div class="app-layout">
         <aside class="sidebar">
-          <div class="logo">
-            <div class="logo-icon">S</div>
-            <span class="logo-text">Sortify</span>
+          <div class="logo-section">
+            <div class="logo">Sortify</div>
+            <div class="logo-subtitle">Media Organizer</div>
           </div>
           
-          <nav>
-            <ul class="nav-menu">
+          <nav class="nav-menu">
+            <div class="nav-section">
+              <div class="nav-section-title">Main</div>
               ${this.navigationItems.map(item => html`
-                <li class="nav-item">
-                  <a 
-                    class="nav-link ${this.activeView === item.id ? 'active' : ''}"
-                    @click=${() => this.setActiveView(item.id)}
-                  >
-                    <span class="nav-icon">${item.icon}</span>
-                    ${item.label}
-                  </a>
-                </li>
+                <div 
+                  class="nav-item ${this.activeView === item.id ? 'active' : ''}"
+                  @click=${() => this.setActiveView(item.id)}
+                >
+                  <span class="nav-icon">${item.icon}</span>
+                  ${item.label}
+                </div>
               `)}
-            </ul>
+            </div>
           </nav>
         </aside>
 
-        <header class="header">
-          <h1 class="header-title">${this.getViewTitle()}</h1>
-          <div class="header-actions">
-            <button class="btn btn-secondary btn-sm">
-              <span>ℹ️</span>
-              Help
-            </button>
-          </div>
-        </header>
-
         <main class="main-content">
-          ${this.renderActiveView()}
+          <header class="header">
+            <h1 class="header-title">${this.getViewTitle()}</h1>
+            <div class="header-actions">
+              <button class="header-btn">
+                <span>❓</span>
+                Help
+              </button>
+              <button class="header-btn">
+                <span>⚙️</span>
+                Settings
+              </button>
+            </div>
+          </header>
+
+          <div class="content-area">
+            ${this.renderActiveView()}
+          </div>
         </main>
       </div>
     `;
@@ -245,7 +386,7 @@ export class SortifyApp extends LitElement {
       <div class="welcome-section">
         <h2 class="welcome-title">Welcome to Sortify</h2>
         <p class="welcome-subtitle">
-          Automatically organize your photos and videos by date
+          Automatically organize your photos and videos by date and metadata
         </p>
         
         <sortify-upload></sortify-upload>
@@ -261,13 +402,30 @@ export class SortifyApp extends LitElement {
           Navigate through your organized photos and videos
         </p>
         
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Media Library</h3>
-            <p class="card-subtitle">Organized by date</p>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feature-icon">📂</div>
+            <h3 class="feature-title">Organized by Date</h3>
+            <p class="feature-description">
+              Your media is automatically organized into folders by year, month, and day
+            </p>
           </div>
           
-          <p>📂 Media browser component will be implemented here</p>
+          <div class="feature-card">
+            <div class="feature-icon">🔍</div>
+            <h3 class="feature-title">Smart Search</h3>
+            <p class="feature-description">
+              Find photos by location, camera model, or any metadata
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3 class="feature-title">Media Stats</h3>
+            <p class="feature-description">
+              View detailed statistics about your photo and video collection
+            </p>
+          </div>
         </div>
       </div>
     `;
@@ -278,16 +436,25 @@ export class SortifyApp extends LitElement {
       <div class="welcome-section">
         <h2 class="welcome-title">Search Media</h2>
         <p class="welcome-subtitle">
-          Find your photos and videos quickly
+          Find your photos and videos quickly using advanced filters
         </p>
         
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Search</h3>
-            <p class="card-subtitle">Search by filename, date, or metadata</p>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feature-icon">📅</div>
+            <h3 class="feature-title">Date Range</h3>
+            <p class="feature-description">
+              Search for media within specific date ranges
+            </p>
           </div>
           
-          <p>🔍 Search component will be implemented here</p>
+          <div class="feature-card">
+            <div class="feature-icon">📸</div>
+            <h3 class="feature-title">Camera Info</h3>
+            <p class="feature-description">
+              Filter by camera model, lens, or shooting settings
+            </p>
+          </div>
         </div>
       </div>
     `;
@@ -298,16 +465,25 @@ export class SortifyApp extends LitElement {
       <div class="welcome-section">
         <h2 class="welcome-title">Settings</h2>
         <p class="welcome-subtitle">
-          Configure your Sortify preferences
+          Configure your Sortify preferences and organization rules
         </p>
         
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Configuration</h3>
-            <p class="card-subtitle">Customize your experience</p>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feature-icon">📁</div>
+            <h3 class="feature-title">Organization</h3>
+            <p class="feature-description">
+              Set up custom folder structures and naming conventions
+            </p>
           </div>
           
-          <p>⚙️ Settings component will be implemented here</p>
+          <div class="feature-card">
+            <div class="feature-icon">🏷️</div>
+            <h3 class="feature-title">Metadata</h3>
+            <p class="feature-description">
+              Choose which metadata fields to extract and use
+            </p>
+          </div>
         </div>
       </div>
     `;
