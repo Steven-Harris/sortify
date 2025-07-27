@@ -12,6 +12,7 @@ dist
 dist-ssr
 dev-dist
 *.local
+temp/
 
 # Editor directories and files
 .vscode/*
@@ -23,6 +24,3 @@ dev-dist
 *.njsproj
 *.sln
 *.sw?
-
-# Program Files
-backend/media/temp/

@@ -49,23 +49,32 @@ backend-download:
 
 # Frontend commands
 frontend-dev:
+    #!/usr/bin/env bash
+    cd frontend 
     echo "🎨 Starting frontend development server..."
     pnpm run dev
 
 frontend-build:
+    #!/usr/bin/env bash
+    cd frontend 
     echo "🔨 Building frontend..."
     pnpm run build
 
 frontend-preview:
+    #!/usr/bin/env bash
+    cd frontend 
     echo "👀 Starting frontend preview..."
     pnpm run preview
 
 frontend-install:
+    #!/usr/bin/env bash
+    cd frontend 
     echo "📦 Installing frontend dependencies..."
     pnpm install
 
 frontend-test:
     #!/usr/bin/env bash
+    cd frontend 
     echo "🧪 Running frontend tests..."
     pnpm test
 
