@@ -66,7 +66,7 @@ func (h *UploadHandlers) StartUploadHandler(w http.ResponseWriter, r *http.Reque
 		"file_size", session.FileSize,
 	)
 
-	response.SuccessWithMessage(w, session, "Upload session created successfully")
+	response.NoContent(w)
 }
 
 func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +135,7 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 		"progress", fmt.Sprintf("%.2f%%", progress.PercentComplete),
 	)
 
-	response.SuccessWithMessage(w, progress, "Chunk uploaded successfully")
+	response.Success(w, progress)
 }
 
 func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -218,7 +218,7 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 		"organized":  true,
 	}
 
-	response.SuccessWithMessage(w, result, "Upload completed and file organized successfully")
+	response.Success(w, result)
 }
 
 func (h *UploadHandlers) GetProgressHandler(w http.ResponseWriter, r *http.Request) {
@@ -268,7 +268,7 @@ func (h *UploadHandlers) PauseUploadHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	slog.Info("Upload paused", "session_id", sessionID)
-	response.SuccessWithMessage(w, nil, "Upload paused successfully")
+	response.NoContent(w)
 }
 
 func (h *UploadHandlers) ResumeUploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -293,7 +293,7 @@ func (h *UploadHandlers) ResumeUploadHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	slog.Info("Upload resumed", "session_id", sessionID)
-	response.SuccessWithMessage(w, nil, "Upload resumed successfully")
+	response.NoContent(w)
 }
 
 func (h *UploadHandlers) CancelUploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -318,5 +318,5 @@ func (h *UploadHandlers) CancelUploadHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	slog.Info("Upload cancelled", "session_id", sessionID)
-	response.SuccessWithMessage(w, nil, "Upload cancelled successfully")
+	response.NoContent(w)
 }

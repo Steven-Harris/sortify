@@ -69,7 +69,7 @@ func (h *MediaHandlers) BrowseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.Success(w, map[string]interface{}{
+	response.Success(w, map[string]any{
 		"type":   "files",
 		"year":   year,
 		"month":  month,
