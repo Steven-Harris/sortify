@@ -7,16 +7,15 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
-// Organizer handles organizing media files into date-based directory structure
 type Organizer struct {
 	mediaPath string
 	extractor *Extractor
 }
 
-// NewOrganizer creates a new media organizer
 func NewOrganizer(mediaPath string) *Organizer {
 	return &Organizer{
 		mediaPath: mediaPath,
@@ -24,29 +23,21 @@ func NewOrganizer(mediaPath string) *Organizer {
 	}
 }
 
-// OrganizeFile processes and organizes a completed upload
 func (o *Organizer) OrganizeFile(tempFilePath, originalFileName string) (*MediaInfo, error) {
-	// Extract metadata from the temporary file
 	info, err := o.extractor.ExtractMetadata(tempFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract metadata: %w", err)
 	}
 
-	// Update filename to original name for proper date extraction
 	info.FileName = originalFileName
 
-	// If date was extracted from filename and original filename is different,
-	// try to re-extract from the original filename
 	tempFileName := filepath.Base(tempFilePath)
 	if info.DateSource == "filename" && tempFileName != originalFileName {
-		// Clear the date extracted from temp filename
 		info.DateTaken = nil
 		info.DateSource = ""
 
-		// Try to extract from original filename
 		o.extractor.ExtractDateFromFilename(originalFileName, info)
 
-		// If still no date found, fall back to file time
 		if info.DateTaken == nil {
 			if fileInfo, err := os.Stat(tempFilePath); err == nil {
 				if fileInfo.ModTime().Year() > 1970 { // Reasonable date check
@@ -55,7 +46,7 @@ func (o *Organizer) OrganizeFile(tempFilePath, originalFileName string) (*MediaI
 				}
 			}
 		}
-	} // Check for duplicates
+	}
 	if duplicate, err := o.checkDuplicate(tempFilePath, info); err != nil {
 		slog.Error("Failed to check for duplicates", "error", err, "file", originalFileName)
 	} else if duplicate {
@@ -64,7 +55,6 @@ func (o *Organizer) OrganizeFile(tempFilePath, originalFileName string) (*MediaI
 		return info, nil
 	}
 
-	// Determine target directory based on date
 	targetDir, err := o.getTargetDirectory(info.DateTaken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine target directory: %w", err)
@@ -75,10 +65,8 @@ func (o *Organizer) OrganizeFile(tempFilePath, originalFileName string) (*MediaI
 		return nil, fmt.Errorf("failed to create target directory: %w", err)
 	}
 
-	// Determine final file path (handle naming conflicts)
 	finalPath := o.getFinalPath(targetDir, originalFileName)
 
-	// Move file from temp location to final location
 	if err := o.moveFile(tempFilePath, finalPath); err != nil {
 		return nil, fmt.Errorf("failed to move file: %w", err)
 	}
@@ -93,47 +81,40 @@ func (o *Organizer) OrganizeFile(tempFilePath, originalFileName string) (*MediaI
 	return info, nil
 }
 
-// checkDuplicate checks if a file with the same content already exists
 func (o *Organizer) checkDuplicate(filePath string, info *MediaInfo) (bool, error) {
-	// Calculate file hash
 	hash, err := o.calculateFileHash(filePath)
 	if err != nil {
 		return false, err
 	}
 
-	// Search for files with the same hash in the organized directories
-	// This is a simplified approach - in production, you might want to use a database
 	targetDir, err := o.getTargetDirectory(info.DateTaken)
 	if err != nil {
 		return false, err
 	}
 
-	// Check if target directory exists
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		return false, nil // Directory doesn't exist, so no duplicates
+		return false, nil
 	}
 
-	// Walk through files in the target directory
 	var foundDuplicate bool
 	err = filepath.Walk(targetDir, func(path string, fileInfo os.FileInfo, err error) error {
 		if err != nil {
-			return nil // Continue walking even if there's an error with a specific file
+			return nil
 		}
 
 		if fileInfo.IsDir() {
 			return nil
 		}
 
-		// Calculate hash of existing file
 		existingHash, err := o.calculateFileHash(path)
 		if err != nil {
-			return nil // Continue even if we can't hash this file
+			return nil
 		}
 
 		if existingHash == hash {
 			foundDuplicate = true
 			slog.Info("Duplicate found", "original", filePath, "existing", path)
-			return filepath.SkipAll // Stop walking
+			return filepath.SkipAll
 		}
 
 		return nil
@@ -142,7 +123,6 @@ func (o *Organizer) checkDuplicate(filePath string, info *MediaInfo) (bool, erro
 	return foundDuplicate, err
 }
 
-// calculateFileHash calculates SHA256 hash of a file
 func (o *Organizer) calculateFileHash(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -158,10 +138,8 @@ func (o *Organizer) calculateFileHash(filePath string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-// getTargetDirectory determines the target directory based on date
 func (o *Organizer) getTargetDirectory(dateTaken *time.Time) (string, error) {
 	if dateTaken == nil {
-		// Use current date if no date could be determined
 		now := time.Now()
 		dateTaken = &now
 	}
@@ -173,16 +151,13 @@ func (o *Organizer) getTargetDirectory(dateTaken *time.Time) (string, error) {
 	return targetDir, nil
 }
 
-// getFinalPath determines the final file path, handling naming conflicts
 func (o *Organizer) getFinalPath(targetDir, fileName string) string {
 	basePath := filepath.Join(targetDir, fileName)
 
-	// If file doesn't exist, use the original name
 	if _, err := os.Stat(basePath); os.IsNotExist(err) {
 		return basePath
 	}
 
-	// File exists, append a number
 	ext := filepath.Ext(fileName)
 	nameWithoutExt := fileName[:len(fileName)-len(ext)]
 
@@ -195,24 +170,19 @@ func (o *Organizer) getFinalPath(targetDir, fileName string) string {
 		}
 	}
 
-	// Fallback - use timestamp
 	timestamp := time.Now().Unix()
 	newName := fmt.Sprintf("%s_%d%s", nameWithoutExt, timestamp, ext)
 	return filepath.Join(targetDir, newName)
 }
 
-// moveFile moves a file from source to destination
 func (o *Organizer) moveFile(src, dst string) error {
-	// Try rename first (fastest if on same filesystem)
 	if err := os.Rename(src, dst); err == nil {
 		return nil
 	}
 
-	// If rename fails, copy and delete
 	return o.copyAndDelete(src, dst)
 }
 
-// copyAndDelete copies a file and deletes the source
 func (o *Organizer) copyAndDelete(src, dst string) error {
 	srcFile, err := os.Open(src)
 	if err != nil {
@@ -227,42 +197,36 @@ func (o *Organizer) copyAndDelete(src, dst string) error {
 	defer dstFile.Close()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		os.Remove(dst) // Clean up partial file
+		os.Remove(dst)
 		return err
 	}
 
-	// Ensure data is written to disk
 	if err := dstFile.Sync(); err != nil {
 		os.Remove(dst)
 		return err
 	}
 
-	// Remove source file
 	return os.Remove(src)
 }
 
-// GetDirectoryStructure returns the organized directory structure
-func (o *Organizer) GetDirectoryStructure() (map[string]interface{}, error) {
-	structure := make(map[string]interface{})
+func (o *Organizer) GetDirectoryStructure() (map[string]any, error) {
+	structure := make(map[string]any)
 
 	err := filepath.Walk(o.mediaPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil // Continue even if there's an error
+			return nil
 		}
 
-		// Skip temp directory
 		if info.IsDir() && info.Name() == "temp" {
 			return filepath.SkipDir
 		}
 
-		// Only include directories that match YYYY/MM pattern
 		if info.IsDir() {
 			relPath, err := filepath.Rel(o.mediaPath, path)
 			if err != nil {
 				return nil
 			}
 
-			// Skip root directory
 			if relPath == "." {
 				return nil
 			}
@@ -280,7 +244,6 @@ func (o *Organizer) GetDirectoryStructure() (map[string]interface{}, error) {
 					structure[year] = make(map[string]int)
 				}
 
-				// Count files in this month
 				fileCount := o.countFilesInDirectory(path)
 				structure[year].(map[string]int)[month] = fileCount
 			}
@@ -292,7 +255,6 @@ func (o *Organizer) GetDirectoryStructure() (map[string]interface{}, error) {
 	return structure, err
 }
 
-// countFilesInDirectory counts the number of files in a directory
 func (o *Organizer) countFilesInDirectory(dirPath string) int {
 	count := 0
 	filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
@@ -305,4 +267,173 @@ func (o *Organizer) countFilesInDirectory(dirPath string) int {
 		return nil
 	})
 	return count
+}
+
+func (o *Organizer) ScanFiles(year, month string, limit, offset int) ([]MediaFileInfo, error) {
+	var files []MediaFileInfo
+	var targetPath string
+
+	if year == "" {
+		targetPath = o.mediaPath
+	} else if month == "" {
+		targetPath = filepath.Join(o.mediaPath, year)
+	} else {
+		targetPath = filepath.Join(o.mediaPath, year, month)
+	}
+
+	slog.Debug("ScanFiles called", "year", year, "month", month, "limit", limit, "offset", offset)
+	slog.Debug("Media path configuration", "mediaPath", o.mediaPath, "targetPath", targetPath)
+
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		slog.Debug("Target directory does not exist", "targetPath", targetPath)
+		return files, nil
+	}
+
+	slog.Debug("Starting filepath.Walk", "targetPath", targetPath)
+
+	err := filepath.Walk(targetPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			slog.Warn("Error walking file", "path", path, "error", err)
+			return nil // Continue walking even if there's an error with one file
+		}
+
+		slog.Debug("Walking path", "path", path, "isDir", info.IsDir(), "name", info.Name())
+
+		if info.IsDir() {
+			slog.Debug("Skipping directory", "path", path)
+			return nil
+		}
+		if strings.Contains(path, "/temp/") || strings.Contains(path, "\\temp\\") {
+			slog.Debug("Skipping temp file", "path", path)
+			return nil
+		}
+
+		slog.Debug("Processing file", "path", path, "name", info.Name())
+
+		if !o.isMediaFile(path) {
+			slog.Debug("Skipping non-media file", "path", path, "ext", filepath.Ext(path))
+			return nil
+		}
+
+		slog.Debug("Found media file", "path", path, "ext", filepath.Ext(path))
+
+		relPath, err := filepath.Rel(o.mediaPath, path)
+		if err != nil {
+			relPath = path
+		}
+
+		mediaInfo, err := o.extractor.ExtractMetadata(path)
+		if err != nil {
+			slog.Warn("Failed to extract metadata", "file", path, "error", err)
+			mediaInfo = &MediaInfo{
+				FileName: info.Name(),
+				FileSize: info.Size(),
+			}
+		}
+
+		fileInfo := MediaFileInfo{
+			ID:           o.generateFileID(relPath),
+			FileName:     info.Name(),
+			RelativePath: relPath,
+			Size:         info.Size(),
+			ModTime:      info.ModTime(),
+			MediaType:    o.getMediaType(path),
+			URL:          fmt.Sprintf("/media/%s", relPath),
+		}
+
+		if mediaInfo != nil {
+			if mediaInfo.DateTaken != nil {
+				fileInfo.DateTaken = mediaInfo.DateTaken
+			}
+			if mediaInfo.Camera != nil {
+				camera := mediaInfo.Camera.Make
+				if mediaInfo.Camera.Model != "" {
+					if camera != "" {
+						camera += " " + mediaInfo.Camera.Model
+					} else {
+						camera = mediaInfo.Camera.Model
+					}
+				}
+				fileInfo.Camera = camera
+			}
+			if mediaInfo.Location != nil {
+				fileInfo.Location = fmt.Sprintf("%f,%f", mediaInfo.Location.Latitude, mediaInfo.Location.Longitude)
+			}
+			fileInfo.Width = mediaInfo.Width
+			fileInfo.Height = mediaInfo.Height
+			fileInfo.Duration = mediaInfo.Duration
+		}
+
+		files = append(files, fileInfo)
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan files: %w", err)
+	}
+
+	o.sortFiles(files)
+
+	start := offset
+	end := offset + limit
+
+	if start >= len(files) {
+		return []MediaFileInfo{}, nil
+	}
+
+	if end > len(files) {
+		end = len(files)
+	}
+
+	return files[start:end], nil
+}
+
+func (o *Organizer) isMediaFile(filePath string) bool {
+	ext := strings.ToLower(filepath.Ext(filePath))
+	supportedExts := map[string]bool{
+		".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".bmp": true, ".tiff": true,
+		".mp4": true, ".mov": true, ".avi": true, ".mkv": true, ".webm": true, ".m4v": true,
+		".3gp": true, ".wmv": true, ".flv": true,
+	}
+	return supportedExts[ext]
+}
+
+func (o *Organizer) getMediaType(filePath string) string {
+	ext := strings.ToLower(filepath.Ext(filePath))
+	imageExts := map[string]bool{
+		".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".bmp": true, ".tiff": true,
+	}
+	if imageExts[ext] {
+		return "image"
+	}
+	return "video"
+}
+
+func (o *Organizer) generateFileID(relPath string) string {
+	hash := sha256.Sum256([]byte(relPath))
+	return fmt.Sprintf("%x", hash[:8])
+}
+
+func (o *Organizer) sortFiles(files []MediaFileInfo) {
+	for i := 0; i < len(files)-1; i++ {
+		for j := i + 1; j < len(files); j++ {
+			var timeI, timeJ time.Time
+
+			if files[i].DateTaken != nil {
+				timeI = *files[i].DateTaken
+			} else {
+				timeI = files[i].ModTime
+			}
+
+			if files[j].DateTaken != nil {
+				timeJ = *files[j].DateTaken
+			} else {
+				timeJ = files[j].ModTime
+			}
+
+			if timeI.Before(timeJ) {
+				files[i], files[j] = files[j], files[i]
+			}
+		}
+	}
 }

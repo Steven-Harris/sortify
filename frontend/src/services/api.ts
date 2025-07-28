@@ -132,10 +132,20 @@ export class ApiService {
   /**
    * List organized files
    */
-  async listFiles(path?: string): Promise<any[]> {
-    const url = new URL(`${this.baseUrl}/api/files`);
-    if (path) {
-      url.searchParams.set('path', path);
+  async listFiles(query?: string, type?: string, limit?: number, offset?: number): Promise<any> {
+    const url = new URL(`${this.baseUrl}/api/media/files`);
+    
+    if (query) {
+      url.searchParams.set('q', query);
+    }
+    if (type && type !== 'all') {
+      url.searchParams.set('type', type);
+    }
+    if (limit) {
+      url.searchParams.set('limit', limit.toString());
+    }
+    if (offset) {
+      url.searchParams.set('offset', offset.toString());
     }
 
     const response = await fetch(url.toString());

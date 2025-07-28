@@ -1,6 +1,7 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './components/upload.js';
+import './components/browse.js';
 
 /**
  * Main Sortify Application Component
@@ -304,9 +305,7 @@ export class SortifyApp extends LitElement {
 
   private navigationItems = [
     { id: 'upload', label: 'Upload', icon: '📤' },
-    { id: 'browse', label: 'Browse', icon: '📁' },
-    { id: 'search', label: 'Search', icon: '🔍' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' }
+    { id: 'browse', label: 'Browse', icon: '📁' }
   ];
 
   render() {
@@ -337,16 +336,6 @@ export class SortifyApp extends LitElement {
         <main class="main-content">
           <header class="header">
             <h1 class="header-title">${this.getViewTitle()}</h1>
-            <div class="header-actions">
-              <button class="header-btn">
-                <span>❓</span>
-                Help
-              </button>
-              <button class="header-btn">
-                <span>⚙️</span>
-                Settings
-              </button>
-            </div>
           </header>
 
           <div class="content-area">
@@ -372,10 +361,6 @@ export class SortifyApp extends LitElement {
         return this.renderUploadView();
       case 'browse':
         return this.renderBrowseView();
-      case 'search':
-        return this.renderSearchView();
-      case 'settings':
-        return this.renderSettingsView();
       default:
         return this.renderUploadView();
     }
@@ -396,13 +381,10 @@ export class SortifyApp extends LitElement {
 
   private renderBrowseView() {
     return html`
-      <div class="welcome-section">
-        <h2 class="welcome-title">Browse Your Media</h2>
-        <p class="welcome-subtitle">
-          Navigate through your organized photos and videos
-        </p>
-        
-        <div class="feature-grid">
+      <sortify-browse></sortify-browse>
+  }
+
+}
           <div class="feature-card">
             <div class="feature-icon">📂</div>
             <h3 class="feature-title">Organized by Date</h3>
@@ -415,12 +397,20 @@ export class SortifyApp extends LitElement {
             <div class="feature-icon">🔍</div>
             <h3 class="feature-title">Smart Search</h3>
             <p class="feature-description">
-              Find photos by location, camera model, or any metadata
+              Find photos by location, camera model, date range, or any metadata
             </p>
           </div>
           
           <div class="feature-card">
-            <div class="feature-icon">📊</div>
+            <div class="feature-icon">�</div>
+            <h3 class="feature-title">Camera & Settings</h3>
+            <p class="feature-description">
+              Filter by camera model, lens, shooting settings, or technical details
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <div class="feature-icon">�</div>
             <h3 class="feature-title">Media Stats</h3>
             <p class="feature-description">
               View detailed statistics about your photo and video collection
@@ -431,61 +421,4 @@ export class SortifyApp extends LitElement {
     `;
   }
 
-  private renderSearchView() {
-    return html`
-      <div class="welcome-section">
-        <h2 class="welcome-title">Search Media</h2>
-        <p class="welcome-subtitle">
-          Find your photos and videos quickly using advanced filters
-        </p>
-        
-        <div class="feature-grid">
-          <div class="feature-card">
-            <div class="feature-icon">📅</div>
-            <h3 class="feature-title">Date Range</h3>
-            <p class="feature-description">
-              Search for media within specific date ranges
-            </p>
-          </div>
-          
-          <div class="feature-card">
-            <div class="feature-icon">📸</div>
-            <h3 class="feature-title">Camera Info</h3>
-            <p class="feature-description">
-              Filter by camera model, lens, or shooting settings
-            </p>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  private renderSettingsView() {
-    return html`
-      <div class="welcome-section">
-        <h2 class="welcome-title">Settings</h2>
-        <p class="welcome-subtitle">
-          Configure your Sortify preferences and organization rules
-        </p>
-        
-        <div class="feature-grid">
-          <div class="feature-card">
-            <div class="feature-icon">📁</div>
-            <h3 class="feature-title">Organization</h3>
-            <p class="feature-description">
-              Set up custom folder structures and naming conventions
-            </p>
-          </div>
-          
-          <div class="feature-card">
-            <div class="feature-icon">🏷️</div>
-            <h3 class="feature-title">Metadata</h3>
-            <p class="feature-description">
-              Choose which metadata fields to extract and use
-            </p>
-          </div>
-        </div>
-      </div>
-    `;
-  }
 }

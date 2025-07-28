@@ -6,65 +6,51 @@ import (
 	"net/http"
 )
 
-// APIResponse represents a standard API response structure
-type APIResponse struct {
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
-	Message string      `json:"message,omitempty"`
+type Problem struct {
+	Error string `json:"error"`
 }
 
-// JSON sends a JSON response with the given status code
-func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
+func JSON(w http.ResponseWriter, statusCode int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		slog.Error("Failed to encode JSON response", "error", err)
 	}
 }
 
-// Success sends a successful JSON response
-func Success(w http.ResponseWriter, data interface{}) {
-	JSON(w, http.StatusOK, APIResponse{
-		Success: true,
-		Data:    data,
+func Success(w http.ResponseWriter, data any) {
+	JSON(w, http.StatusOK, data)
+}
+
+func NoContent(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func Error(w http.ResponseWriter, statusCode int, error string) {
+	if statusCode == http.StatusInternalServerError {
+		slog.Error("Something went wrong", "error", error)
+	} else {
+		slog.Warn("A bad request was made", "error", error)
+	}
+
+	JSON(w, statusCode, Problem{
+		Error: error,
 	})
 }
 
-// SuccessWithMessage sends a successful JSON response with a message
-func SuccessWithMessage(w http.ResponseWriter, data interface{}, message string) {
-	JSON(w, http.StatusOK, APIResponse{
-		Success: true,
-		Data:    data,
-		Message: message,
-	})
+func BadRequest(w http.ResponseWriter, error string) {
+	Error(w, http.StatusBadRequest, error)
 }
 
-// Error sends an error JSON response
-func Error(w http.ResponseWriter, statusCode int, message string) {
-	JSON(w, statusCode, APIResponse{
-		Success: false,
-		Error:   message,
-	})
+func InternalError(w http.ResponseWriter, error string) {
+	Error(w, http.StatusInternalServerError, error)
 }
 
-// BadRequest sends a 400 Bad Request response
-func BadRequest(w http.ResponseWriter, message string) {
-	Error(w, http.StatusBadRequest, message)
+func NotFound(w http.ResponseWriter, error string) {
+	Error(w, http.StatusNotFound, error)
 }
 
-// InternalError sends a 500 Internal Server Error response
-func InternalError(w http.ResponseWriter, message string) {
-	Error(w, http.StatusInternalServerError, message)
-}
-
-// NotFound sends a 404 Not Found response
-func NotFound(w http.ResponseWriter, message string) {
-	Error(w, http.StatusNotFound, message)
-}
-
-// Unauthorized sends a 401 Unauthorized response
-func Unauthorized(w http.ResponseWriter, message string) {
-	Error(w, http.StatusUnauthorized, message)
+func Unauthorized(w http.ResponseWriter, error string) {
+	Error(w, http.StatusUnauthorized, error)
 }

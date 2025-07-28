@@ -24,3 +24,6 @@ temp/
 *.njsproj
 *.sln
 *.sw?
+
+# app
+backend/media

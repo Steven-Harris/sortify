@@ -8,12 +8,11 @@ import (
 	"github.com/Steven-harris/sortify/backend/pkg/response"
 )
 
-// CORS middleware to handle Cross-Origin Resource Sharing
 func CORS(allowedOrigins string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
-			
+
 			// Set CORS headers
 			if allowedOrigins == "*" {
 				w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -27,7 +26,7 @@ func CORS(allowedOrigins string) func(http.Handler) http.Handler {
 					}
 				}
 			}
-			
+
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 			w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
@@ -43,7 +42,6 @@ func CORS(allowedOrigins string) func(http.Handler) http.Handler {
 	}
 }
 
-// Logging middleware to log HTTP requests
 func Logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("HTTP request",
@@ -56,7 +54,6 @@ func Logging(next http.Handler) http.Handler {
 	})
 }
 
-// Recovery middleware to handle panics
 func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {

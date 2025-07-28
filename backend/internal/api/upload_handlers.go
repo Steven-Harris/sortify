@@ -14,15 +14,13 @@ import (
 	"github.com/Steven-harris/sortify/backend/pkg/response"
 )
 
-// UploadHandlers contains all upload-related HTTP handlers
 type UploadHandlers struct {
 	manager   *upload.Manager
 	organizer *media.Organizer
 }
 
-// NewUploadHandlers creates a new upload handlers instance
 func NewUploadHandlers(tempDir, mediaPath string) *UploadHandlers {
-	manager := upload.NewManager(tempDir, 10) // Max 10 concurrent uploads
+	manager := upload.NewManager(tempDir, 10)
 	organizer := media.NewOrganizer(mediaPath)
 	return &UploadHandlers{
 		manager:   manager,
@@ -30,7 +28,6 @@ func NewUploadHandlers(tempDir, mediaPath string) *UploadHandlers {
 	}
 }
 
-// StartUploadHandler handles starting a new upload session
 func (h *UploadHandlers) StartUploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -44,7 +41,6 @@ func (h *UploadHandlers) StartUploadHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Validate request
 	if req.FileName == "" {
 		response.BadRequest(w, "Filename is required")
 		return
@@ -54,7 +50,7 @@ func (h *UploadHandlers) StartUploadHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if req.ChunkSize <= 0 {
-		req.ChunkSize = 1024 * 1024 // Default 1MB chunks
+		req.ChunkSize = 1024 * 1024
 	}
 
 	session, err := h.manager.CreateSession(&req)
@@ -73,21 +69,18 @@ func (h *UploadHandlers) StartUploadHandler(w http.ResponseWriter, r *http.Reque
 	response.SuccessWithMessage(w, session, "Upload session created successfully")
 }
 
-// UploadChunkHandler handles uploading a chunk of data
 func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
-	// Parse multipart form
-	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB max memory
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		slog.Error("Failed to parse multipart form", "error", err)
 		response.BadRequest(w, "Failed to parse form data")
 		return
 	}
 
-	// Extract form values
 	sessionID := r.FormValue("session_id")
 	chunkNumberStr := r.FormValue("chunk_number")
 	expectedChecksum := r.FormValue("checksum")
@@ -103,7 +96,6 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Get the chunk file from form
 	file, _, err := r.FormFile("chunk")
 	if err != nil {
 		slog.Error("Failed to get chunk file", "error", err)
@@ -112,7 +104,6 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 	}
 	defer file.Close()
 
-	// Read chunk data
 	chunkData, err := io.ReadAll(file)
 	if err != nil {
 		slog.Error("Failed to read chunk data", "error", err)
@@ -120,7 +111,6 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Upload the chunk
 	if err := h.manager.UploadChunk(sessionID, chunkNumber, chunkData, expectedChecksum); err != nil {
 		slog.Error("Failed to upload chunk",
 			"error", err,
@@ -131,7 +121,6 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Get current progress
 	progress, err := h.manager.GetProgress(sessionID)
 	if err != nil {
 		slog.Error("Failed to get upload progress", "error", err)
@@ -149,7 +138,6 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 	response.SuccessWithMessage(w, progress, "Chunk uploaded successfully")
 }
 
-// CompleteUploadHandler handles completing an upload session
 func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -168,7 +156,6 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Complete the upload
 	if err := h.manager.CompleteUpload(req.SessionID, req.Checksum); err != nil {
 		slog.Error("Failed to complete upload",
 			"error", err,
@@ -178,7 +165,6 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Get the temporary file path
 	tempPath, err := h.manager.GetTempFilePath(req.SessionID)
 	if err != nil {
 		slog.Error("Failed to get temp file path",
@@ -189,7 +175,6 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Get original filename from session
 	session, err := h.manager.GetSession(req.SessionID)
 	if err != nil {
 		slog.Error("Failed to get session",
@@ -200,7 +185,6 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Organize the file (extract metadata and move to proper location)
 	mediaInfo, err := h.organizer.OrganizeFile(tempPath, session.FileName)
 	if err != nil {
 		slog.Error("Failed to organize file",
@@ -212,7 +196,6 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Clean up the upload session
 	if err := h.manager.CleanupSession(req.SessionID); err != nil {
 		slog.Warn("Failed to cleanup session",
 			"error", err,
@@ -228,8 +211,7 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 		"date_source", mediaInfo.DateSource,
 	)
 
-	// Return comprehensive result including metadata
-	result := map[string]interface{}{
+	result := map[string]any{
 		"session_id": req.SessionID,
 		"filename":   mediaInfo.FileName,
 		"media_info": mediaInfo,
@@ -239,7 +221,6 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 	response.SuccessWithMessage(w, result, "Upload completed and file organized successfully")
 }
 
-// GetProgressHandler handles getting upload progress
 func (h *UploadHandlers) GetProgressHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -265,7 +246,6 @@ func (h *UploadHandlers) GetProgressHandler(w http.ResponseWriter, r *http.Reque
 	response.Success(w, progress)
 }
 
-// PauseUploadHandler handles pausing an upload
 func (h *UploadHandlers) PauseUploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -291,7 +271,6 @@ func (h *UploadHandlers) PauseUploadHandler(w http.ResponseWriter, r *http.Reque
 	response.SuccessWithMessage(w, nil, "Upload paused successfully")
 }
 
-// ResumeUploadHandler handles resuming a paused upload
 func (h *UploadHandlers) ResumeUploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -317,7 +296,6 @@ func (h *UploadHandlers) ResumeUploadHandler(w http.ResponseWriter, r *http.Requ
 	response.SuccessWithMessage(w, nil, "Upload resumed successfully")
 }
 
-// CancelUploadHandler handles cancelling an upload
 func (h *UploadHandlers) CancelUploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
