@@ -39,17 +39,17 @@ func TestGetTargetDirectory(t *testing.T) {
 		{
 			name:     "Valid date",
 			date:     timePtr(time.Date(2024, 3, 15, 14, 30, 22, 0, time.UTC)),
-			expected: filepath.Join(tempDir, "2024", "03"),
+			expected: filepath.Join(tempDir, "2024", "March"),
 		},
 		{
 			name:     "Different year and month",
 			date:     timePtr(time.Date(2023, 12, 25, 0, 0, 0, 0, time.UTC)),
-			expected: filepath.Join(tempDir, "2023", "12"),
+			expected: filepath.Join(tempDir, "2023", "December"),
 		},
 		{
 			name:     "Single digit month",
 			date:     timePtr(time.Date(2022, 7, 8, 0, 0, 0, 0, time.UTC)),
-			expected: filepath.Join(tempDir, "2022", "07"),
+			expected: filepath.Join(tempDir, "2022", "July"),
 		},
 		{
 			name:     "Nil date",
@@ -122,7 +122,7 @@ func TestOrganizeFileSuccess(t *testing.T) {
 	}
 
 	// Verify file was moved to correct location
-	expectedDir := filepath.Join(tempDir, "2024", "03")
+	expectedDir := filepath.Join(tempDir, "2024", "March")
 	expectedFile := filepath.Join(expectedDir, "IMG_20240315_143022.jpg")
 
 	if _, err := os.Stat(expectedFile); os.IsNotExist(err) {
@@ -150,7 +150,7 @@ func TestOrganizeFileDuplicate(t *testing.T) {
 	organizer := NewOrganizer(tempDir)
 
 	// Create target directory and existing file
-	targetDir := filepath.Join(tempDir, "2024", "03")
+	targetDir := filepath.Join(tempDir, "2024", "March")
 	err := os.MkdirAll(targetDir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create target directory: %v", err)
@@ -202,7 +202,7 @@ func TestOrganizeFileConflict(t *testing.T) {
 	organizer := NewOrganizer(tempDir)
 
 	// Create target directory and existing file with different content
-	targetDir := filepath.Join(tempDir, "2024", "03")
+	targetDir := filepath.Join(tempDir, "2024", "March")
 	err := os.MkdirAll(targetDir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create target directory: %v", err)
@@ -424,9 +424,9 @@ func TestGetDirectoryStructure(t *testing.T) {
 		path    string
 		content string
 	}{
-		{"2024/03/IMG_20240315_143022.jpg", "content1"},
-		{"2024/03/IMG_20240315_150000.jpg", "content2"},
-		{"2023/12/VID_20231225_120000.mp4", "content3"},
+		{"2024/March/IMG_20240315_143022.jpg", "content1"},
+		{"2024/March/IMG_20240315_150000.jpg", "content2"},
+		{"2023/December/VID_20231225_120000.mp4", "content3"},
 	}
 
 	for _, file := range testFiles {

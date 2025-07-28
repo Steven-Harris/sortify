@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type Organizer struct {
@@ -47,6 +48,7 @@ func (o *Organizer) OrganizeFile(tempFilePath, originalFileName string) (*MediaI
 			}
 		}
 	}
+
 	if duplicate, err := o.checkDuplicate(tempFilePath, info); err != nil {
 		slog.Error("Failed to check for duplicates", "error", err, "file", originalFileName)
 	} else if duplicate {
@@ -60,25 +62,48 @@ func (o *Organizer) OrganizeFile(tempFilePath, originalFileName string) (*MediaI
 		return nil, fmt.Errorf("failed to determine target directory: %w", err)
 	}
 
-	// Ensure target directory exists
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create target directory: %w", err)
 	}
 
-	finalPath := o.getFinalPath(targetDir, originalFileName)
+	sanitizedFilename := o.sanitizeFileName(originalFileName)
+	finalPath := filepath.Join(targetDir, sanitizedFilename)
+	finalPath = o.handleDuplicates(finalPath)
 
 	if err := o.moveFile(tempFilePath, finalPath); err != nil {
 		return nil, fmt.Errorf("failed to move file: %w", err)
 	}
 
 	slog.Info("File organized successfully",
-		"original_file", originalFileName,
-		"final_path", finalPath,
-		"date_taken", info.DateTaken,
-		"date_source", info.DateSource,
+		"originalFile", originalFileName,
+		"finalPath", finalPath,
+		"dateTaken", info.DateTaken,
+		"dateSource", info.DateSource,
 	)
 
 	return info, nil
+}
+
+func (o *Organizer) handleDuplicates(targetPath string) string {
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		return targetPath
+	}
+
+	dir := filepath.Dir(targetPath)
+	filename := filepath.Base(targetPath)
+	ext := filepath.Ext(filename)
+	nameWithoutExt := strings.TrimSuffix(filename, ext)
+
+	counter := 1
+	for {
+		newFilename := fmt.Sprintf("%s(%d)%s", nameWithoutExt, counter, ext)
+		newPath := filepath.Join(dir, newFilename)
+
+		if _, err := os.Stat(newPath); os.IsNotExist(err) {
+			return newPath
+		}
+		counter++
+	}
 }
 
 func (o *Organizer) checkDuplicate(filePath string, info *MediaInfo) (bool, error) {
@@ -139,27 +164,27 @@ func (o *Organizer) calculateFileHash(filePath string) (string, error) {
 }
 
 func (o *Organizer) getTargetDirectory(dateTaken *time.Time) (string, error) {
-	if dateTaken == nil {
-		now := time.Now()
-		dateTaken = &now
-	}
+	// Validate and sanitize the date
+	validatedDate := o.validateDate(dateTaken)
 
-	year := dateTaken.Format("2006")
-	month := dateTaken.Format("01")
+	year := validatedDate.Format("2006")
+	month := validatedDate.Format("January") // Use full English month name
 
 	targetDir := filepath.Join(o.mediaPath, year, month)
 	return targetDir, nil
 }
 
 func (o *Organizer) getFinalPath(targetDir, fileName string) string {
-	basePath := filepath.Join(targetDir, fileName)
+	// Sanitize the filename first
+	sanitizedFileName := o.sanitizeFileName(fileName)
+	basePath := filepath.Join(targetDir, sanitizedFileName)
 
 	if _, err := os.Stat(basePath); os.IsNotExist(err) {
 		return basePath
 	}
 
-	ext := filepath.Ext(fileName)
-	nameWithoutExt := fileName[:len(fileName)-len(ext)]
+	ext := filepath.Ext(sanitizedFileName)
+	nameWithoutExt := sanitizedFileName[:len(sanitizedFileName)-len(ext)]
 
 	for i := 1; i < 1000; i++ {
 		newName := fmt.Sprintf("%s(%d)%s", nameWithoutExt, i, ext)
@@ -173,6 +198,87 @@ func (o *Organizer) getFinalPath(targetDir, fileName string) string {
 	timestamp := time.Now().Unix()
 	newName := fmt.Sprintf("%s_%d%s", nameWithoutExt, timestamp, ext)
 	return filepath.Join(targetDir, newName)
+}
+
+// sanitizeFileName removes or replaces problematic characters in filenames
+func (o *Organizer) sanitizeFileName(fileName string) string {
+	if fileName == "" {
+		return "untitled"
+	}
+
+	// Remove or replace problematic characters
+	// Replace common problematic characters with safe alternatives
+	replacements := map[string]string{
+		"/":  "_", // Forward slash
+		"\\": "_", // Backslash
+		":":  "_", // Colon
+		"*":  "_", // Asterisk
+		"?":  "_", // Question mark
+		"\"": "_", // Double quote
+		"<":  "_", // Less than
+		">":  "_", // Greater than
+		"|":  "_", // Pipe
+	}
+
+	result := fileName
+	for old, new := range replacements {
+		result = strings.ReplaceAll(result, old, new)
+	}
+
+	// Remove control characters and other problematic Unicode characters
+	var sanitized strings.Builder
+	for _, r := range result {
+		if unicode.IsControl(r) || r == 0 {
+			continue // Skip control characters
+		}
+		sanitized.WriteRune(r)
+	}
+
+	result = sanitized.String()
+
+	// Trim whitespace and dots from beginning and end
+	result = strings.Trim(result, " .")
+
+	// Handle empty result after sanitization
+	if result == "" {
+		return "untitled"
+	}
+
+	// Ensure filename isn't too long (most filesystems support 255 characters)
+	if len(result) > 200 { // Leave some room for numbering if needed
+		ext := filepath.Ext(result)
+		nameWithoutExt := result[:len(result)-len(ext)]
+		if len(nameWithoutExt) > 200-len(ext) {
+			nameWithoutExt = nameWithoutExt[:200-len(ext)]
+		}
+		result = nameWithoutExt + ext
+	}
+
+	return result
+}
+
+// validateDate ensures the date is reasonable and handles edge cases
+func (o *Organizer) validateDate(dateTaken *time.Time) *time.Time {
+	if dateTaken == nil {
+		now := time.Now()
+		return &now
+	}
+
+	// Check for unreasonable dates (before digital photography era or too far in future)
+	minDate := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
+	maxDate := time.Now().AddDate(1, 0, 0) // One year in the future
+
+	if dateTaken.Before(minDate) || dateTaken.After(maxDate) {
+		slog.Warn("Date outside reasonable range, using current time",
+			"original_date", dateTaken,
+			"min_date", minDate,
+			"max_date", maxDate,
+		)
+		now := time.Now()
+		return &now
+	}
+
+	return dateTaken
 }
 
 func (o *Organizer) moveFile(src, dst string) error {
