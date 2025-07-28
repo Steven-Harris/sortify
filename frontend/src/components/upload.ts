@@ -413,6 +413,9 @@ export class SortifyUpload extends LitElement {
   @property({ type: Boolean })
   disabled = false;
 
+  @property({ type: Number })
+  maxFileSize = 0; // 0 = no limit
+
   @state()
   private uploadQueue: UploadFile[] = [];
 
@@ -446,7 +449,7 @@ export class SortifyUpload extends LitElement {
             </div>
             <h3 class="dropzone-title">Drop your photos and videos here</h3>
             <p class="dropzone-subtitle">
-              Supports JPG, PNG, GIF, MP4, MOV and more. Up to 100MB per file.
+              Supports JPG, PNG, GIF, MP4, MOV and more. No file size limit.
             </p>
             <button 
               class="upload-button"
@@ -656,21 +659,18 @@ export class SortifyUpload extends LitElement {
 
     this.uploadQueue = [...this.uploadQueue, ...newItems];
     
-    // Start uploading automatically
     this.startNextUpload();
   }
 
   private isValidFile(file: File): boolean {
-    // Check file type
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
       console.warn('Invalid file type:', file.type);
       return false;
     }
 
-    // Check file size (100MB limit)
-    const maxSize = 100 * 1024 * 1024;
-    if (file.size > maxSize) {
-      console.warn('File too large:', file.size);
+    // Check file size using configurable limit
+    if (this.maxFileSize > 0 && file.size > this.maxFileSize) {
+      console.warn('File too large:', file.size, 'Max allowed:', this.maxFileSize);
       return false;
     }
 
@@ -705,10 +705,8 @@ export class SortifyUpload extends LitElement {
 
   private async uploadFile(item: UploadFile) {
     try {
-      // Create abort controller for this upload
       item.abortController = new AbortController();
       
-      // Upload the file using the API service
       const uploadResponse = await apiService.uploadFile(item.file, {
         onProgress: (progress) => {
           item.progress = Math.round(progress * 100);
@@ -722,22 +720,23 @@ export class SortifyUpload extends LitElement {
         signal: item.abortController.signal
       });
 
-      // Store upload response
       item.uploadResponse = uploadResponse;
       item.uploadId = uploadResponse.id;
       
-      // Start processing the uploaded file
       item.status = 'processing';
       item.progress = 100;
       this.requestUpdate();
 
       try {
-        const processResponse = await apiService.processFile(uploadResponse.id);
-        item.processResponse = processResponse;
-        item.processId = processResponse.id;
-        
-        // Poll for processing completion
-        await this.waitForProcessing(item);
+        item.status = 'completed';
+        item.processResponse = {
+          id: uploadResponse.sessionId ?? uploadResponse.id ?? '',
+          originalPath: uploadResponse.filename,
+          organizedPath: uploadResponse.filename,
+          metadata: uploadResponse.mediaInfo || {},
+          status: 'completed'
+        };
+        this.requestUpdate();
         
       } catch (processError) {
         item.status = 'error';
@@ -747,7 +746,6 @@ export class SortifyUpload extends LitElement {
 
     } catch (uploadError) {
       if (uploadError instanceof Error && uploadError.message === 'Upload cancelled') {
-        // Upload was cancelled, don't mark as error
         return;
       }
       
@@ -755,54 +753,6 @@ export class SortifyUpload extends LitElement {
       item.error = uploadError instanceof Error ? uploadError.message : 'Upload failed';
       this.requestUpdate();
     }
-  }
-
-  private async waitForProcessing(item: UploadFile) {
-    if (!item.processId) return;
-
-    const maxAttempts = 60; // 5 minutes max
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      try {
-        const status = await apiService.getProcessStatus(item.processId);
-        item.processResponse = status;
-
-        if (status.status === 'completed') {
-          item.status = 'completed';
-          this.requestUpdate();
-          return;
-        }
-
-        if (status.status === 'error') {
-          item.status = 'error';
-          item.error = status.error || 'Processing failed';
-          this.requestUpdate();
-          return;
-        }
-
-        // Still processing, wait and try again
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        attempts++;
-
-      } catch (error) {
-        attempts++;
-        if (attempts >= maxAttempts) {
-          item.status = 'error';
-          item.error = 'Processing timeout';
-          this.requestUpdate();
-          return;
-        }
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
-    }
-
-    // Timeout
-    item.status = 'error';
-    item.error = 'Processing timeout';
-    this.requestUpdate();
   }
 
   private pauseUpload(id: string) {

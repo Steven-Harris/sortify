@@ -11,6 +11,12 @@ backend-dev:
     echo "🚀 Starting backend development server..."
     go run cmd/server/main.go
 
+backend-air:
+    #!/usr/bin/env bash
+    cd backend
+    echo "🔥 Starting backend with Air live reload..."
+    ~/go/bin/air
+
 backend-build:
     #!/usr/bin/env bash
     cd backend
@@ -194,7 +200,7 @@ api-test-upload:
     echo "Creating test upload session..."
     curl -X POST http://localhost:8080/api/upload/start \
         -H "Content-Type: application/json" \
-        -d '{"filename":"test.jpg","file_size":1024,"chunk_size":256,"checksum":"abc123"}' \
+        -d '{"filename":"test.jpg","fileSize":1024,"chunk_size":256,"checksum":"abc123"}' \
         | jq .
 
 # Git helpers

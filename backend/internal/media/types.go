@@ -16,7 +16,7 @@ type MediaInfo struct {
 	Duration      *time.Duration    `json:"duration,omitempty"`
 	Camera        *CameraInfo       `json:"camera,omitempty"`
 	Location      *LocationInfo     `json:"location,omitempty"`
-	ExtraMetadata map[string]string `json:"extra_metadata,omitempty"`
+	ExtraMetadata map[string]string `json:"extraMetadata,omitempty"`
 }
 
 type MediaType string
@@ -32,8 +32,8 @@ type DateSource string
 const (
 	DateSourceEXIF      DateSource = "exif"
 	DateSourceFileName  DateSource = "filename"
-	DateSourceFileTime  DateSource = "file_time"
-	DateSourceUserInput DateSource = "user_input"
+	DateSourceFileTime  DateSource = "fileTime"
+	DateSourceUserInput DateSource = "userInput"
 	DateSourceUnknown   DateSource = "unknown"
 )
 

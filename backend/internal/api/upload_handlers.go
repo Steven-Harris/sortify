@@ -61,12 +61,17 @@ func (h *UploadHandlers) StartUploadHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	slog.Info("Upload session created",
-		"session_id", session.ID,
+		"sessionId", session.ID,
 		"filename", session.FileName,
-		"file_size", session.FileSize,
+		"fileSize", session.FileSize,
 	)
 
-	response.NoContent(w)
+	result := map[string]any{
+		"uploadId":  session.ID,
+		"sessionId": session.ID, // For backward compatibility
+	}
+
+	response.Success(w, result)
 }
 
 func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Request) {
@@ -75,14 +80,24 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
+	if err := r.ParseMultipartForm(0); err != nil { // 0 = no limit
 		slog.Error("Failed to parse multipart form", "error", err)
 		response.BadRequest(w, "Failed to parse form data")
 		return
 	}
 
-	sessionID := r.FormValue("session_id")
-	chunkNumberStr := r.FormValue("chunk_number")
+	sessionID := r.FormValue("sessionId")
+	if sessionID == "" {
+		// Try fallback to snake_case for backward compatibility
+		sessionID = r.FormValue("sessionId")
+	}
+
+	chunkNumberStr := r.FormValue("chunkNumber")
+	if chunkNumberStr == "" {
+		// Try fallback to snake_case for backward compatibility
+		chunkNumberStr = r.FormValue("chunk_number")
+	}
+
 	expectedChecksum := r.FormValue("checksum")
 
 	if sessionID == "" {
@@ -114,7 +129,7 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 	if err := h.manager.UploadChunk(sessionID, chunkNumber, chunkData, expectedChecksum); err != nil {
 		slog.Error("Failed to upload chunk",
 			"error", err,
-			"session_id", sessionID,
+			"sessionId", sessionID,
 			"chunk_number", chunkNumber,
 		)
 		response.InternalError(w, fmt.Sprintf("Failed to upload chunk: %v", err))
@@ -129,7 +144,7 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	slog.Info("Chunk uploaded successfully",
-		"session_id", sessionID,
+		"sessionId", sessionID,
 		"chunk_number", chunkNumber,
 		"chunk_size", len(chunkData),
 		"progress", fmt.Sprintf("%.2f%%", progress.PercentComplete),
@@ -159,7 +174,7 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 	if err := h.manager.CompleteUpload(req.SessionID, req.Checksum); err != nil {
 		slog.Error("Failed to complete upload",
 			"error", err,
-			"session_id", req.SessionID,
+			"sessionId", req.SessionID,
 		)
 		response.InternalError(w, fmt.Sprintf("Failed to complete upload: %v", err))
 		return
@@ -169,7 +184,7 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		slog.Error("Failed to get temp file path",
 			"error", err,
-			"session_id", req.SessionID,
+			"sessionId", req.SessionID,
 		)
 		response.InternalError(w, "Failed to get temporary file path")
 		return
@@ -179,7 +194,7 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		slog.Error("Failed to get session",
 			"error", err,
-			"session_id", req.SessionID,
+			"sessionId", req.SessionID,
 		)
 		response.InternalError(w, "Failed to get session information")
 		return
@@ -189,7 +204,7 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		slog.Error("Failed to organize file",
 			"error", err,
-			"session_id", req.SessionID,
+			"sessionId", req.SessionID,
 			"filename", session.FileName,
 		)
 		response.InternalError(w, fmt.Sprintf("Failed to organize file: %v", err))
@@ -199,12 +214,12 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 	if err := h.manager.CleanupSession(req.SessionID); err != nil {
 		slog.Warn("Failed to cleanup session",
 			"error", err,
-			"session_id", req.SessionID,
+			"sessionId", req.SessionID,
 		)
 	}
 
 	slog.Info("Upload completed and organized successfully",
-		"session_id", req.SessionID,
+		"sessionId", req.SessionID,
 		"filename", mediaInfo.FileName,
 		"media_type", mediaInfo.MediaType,
 		"date_taken", mediaInfo.DateTaken,
@@ -212,10 +227,10 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 	)
 
 	result := map[string]any{
-		"session_id": req.SessionID,
-		"filename":   mediaInfo.FileName,
-		"media_info": mediaInfo,
-		"organized":  true,
+		"sessionId": req.SessionID,
+		"filename":  mediaInfo.FileName,
+		"mediaInfo": mediaInfo,
+		"organized": true,
 	}
 
 	response.Success(w, result)
@@ -227,7 +242,11 @@ func (h *UploadHandlers) GetProgressHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	sessionID := r.URL.Query().Get("session_id")
+	sessionID := r.URL.Query().Get("sessionId")
+	if sessionID == "" {
+		// Try fallback to snake_case for backward compatibility
+		sessionID = r.URL.Query().Get("sessionId")
+	}
 	if sessionID == "" {
 		response.BadRequest(w, "Session ID is required")
 		return
@@ -237,7 +256,7 @@ func (h *UploadHandlers) GetProgressHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		slog.Error("Failed to get upload progress",
 			"error", err,
-			"session_id", sessionID,
+			"sessionId", sessionID,
 		)
 		response.NotFound(w, "Session not found")
 		return
@@ -252,7 +271,11 @@ func (h *UploadHandlers) PauseUploadHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	sessionID := r.URL.Query().Get("session_id")
+	sessionID := r.URL.Query().Get("sessionId")
+	if sessionID == "" {
+		// Try fallback to snake_case for backward compatibility
+		sessionID = r.URL.Query().Get("sessionId")
+	}
 	if sessionID == "" {
 		response.BadRequest(w, "Session ID is required")
 		return
@@ -261,13 +284,13 @@ func (h *UploadHandlers) PauseUploadHandler(w http.ResponseWriter, r *http.Reque
 	if err := h.manager.PauseUpload(sessionID); err != nil {
 		slog.Error("Failed to pause upload",
 			"error", err,
-			"session_id", sessionID,
+			"sessionId", sessionID,
 		)
 		response.InternalError(w, fmt.Sprintf("Failed to pause upload: %v", err))
 		return
 	}
 
-	slog.Info("Upload paused", "session_id", sessionID)
+	slog.Info("Upload paused", "sessionId", sessionID)
 	response.NoContent(w)
 }
 
@@ -277,7 +300,11 @@ func (h *UploadHandlers) ResumeUploadHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	sessionID := r.URL.Query().Get("session_id")
+	sessionID := r.URL.Query().Get("sessionId")
+	if sessionID == "" {
+		// Try fallback to snake_case for backward compatibility
+		sessionID = r.URL.Query().Get("sessionId")
+	}
 	if sessionID == "" {
 		response.BadRequest(w, "Session ID is required")
 		return
@@ -286,13 +313,13 @@ func (h *UploadHandlers) ResumeUploadHandler(w http.ResponseWriter, r *http.Requ
 	if err := h.manager.ResumeUpload(sessionID); err != nil {
 		slog.Error("Failed to resume upload",
 			"error", err,
-			"session_id", sessionID,
+			"sessionId", sessionID,
 		)
 		response.InternalError(w, fmt.Sprintf("Failed to resume upload: %v", err))
 		return
 	}
 
-	slog.Info("Upload resumed", "session_id", sessionID)
+	slog.Info("Upload resumed", "sessionId", sessionID)
 	response.NoContent(w)
 }
 
@@ -302,7 +329,11 @@ func (h *UploadHandlers) CancelUploadHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	sessionID := r.URL.Query().Get("session_id")
+	sessionID := r.URL.Query().Get("sessionId")
+	if sessionID == "" {
+		// Try fallback to snake_case for backward compatibility
+		sessionID = r.URL.Query().Get("sessionId")
+	}
 	if sessionID == "" {
 		response.BadRequest(w, "Session ID is required")
 		return
@@ -311,12 +342,12 @@ func (h *UploadHandlers) CancelUploadHandler(w http.ResponseWriter, r *http.Requ
 	if err := h.manager.CancelUpload(sessionID); err != nil {
 		slog.Error("Failed to cancel upload",
 			"error", err,
-			"session_id", sessionID,
+			"sessionId", sessionID,
 		)
 		response.InternalError(w, fmt.Sprintf("Failed to cancel upload: %v", err))
 		return
 	}
 
-	slog.Info("Upload cancelled", "session_id", sessionID)
+	slog.Info("Upload cancelled", "sessionId", sessionID)
 	response.NoContent(w)
 }

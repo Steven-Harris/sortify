@@ -181,7 +181,7 @@ func TestUploadChunkHandler(t *testing.T) {
 			writer := multipart.NewWriter(&body)
 
 			// Add form fields
-			writer.WriteField("session_id", test.sessionID)
+			writer.WriteField("sessionId", test.sessionID)
 			writer.WriteField("chunk_number", test.chunkNumber)
 
 			// Add chunk file
@@ -271,7 +271,7 @@ func TestGetProgressHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			url := "/api/upload/progress?session_id=" + test.sessionID
+			url := "/api/upload/progress?sessionId=" + test.sessionID
 			req := httptest.NewRequest("GET", url, nil)
 
 			rr := httptest.NewRecorder()

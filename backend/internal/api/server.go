@@ -38,8 +38,8 @@ func (s *Server) Start() error {
 	s.server = &http.Server{
 		Addr:         ":" + s.config.Port,
 		Handler:      router,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		ReadTimeout:  10 * time.Minute, // Increased for large file uploads
+		WriteTimeout: 10 * time.Minute, // Increased for large file uploads
 		IdleTimeout:  120 * time.Second,
 	}
 

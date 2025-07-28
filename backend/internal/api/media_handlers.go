@@ -131,8 +131,8 @@ func (h *MediaHandlers) UserDateHandler(w http.ResponseWriter, r *http.Request) 
 
 	// TODO: Store the user-provided date and complete the upload process
 	slog.Info("User provided date for upload",
-		"session_id", req.SessionID,
-		"date_taken", req.DateTaken,
+		"sessionId", req.SessionID,
+		"dateTaken", req.DateTaken,
 	)
 
 	response.NoContent(w)
@@ -164,7 +164,8 @@ func (h *MediaHandlers) ListFilesHandler(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	allFiles, err := h.organizer.ScanFiles("", "", 0, 0)
+	// Get all files without pagination first
+	allFiles, err := h.organizer.ScanFiles("", "", 10000, 0)
 	if err != nil {
 		slog.Error("Failed to scan files", "error", err)
 		response.InternalError(w, "Failed to retrieve files")

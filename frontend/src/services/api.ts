@@ -10,11 +10,14 @@ export interface UploadOptions {
 }
 
 export interface UploadResponse {
-  id: string;
+  sessionId?: string;
+  id?: string;
   filename: string;
-  size: number;
-  checksum: string;
-  status: 'uploaded' | 'processing' | 'completed' | 'error';
+  mediaInfo?: any;
+  organized?: boolean;
+  size?: number;
+  checksum?: string;
+  status?: 'uploaded' | 'processing' | 'completed' | 'error';
 }
 
 export interface ProcessResponse {
@@ -50,11 +53,11 @@ export class ApiService {
       // Calculate file checksum (simple hash for demo)
       const checksum = await this.calculateChecksum(file);
       
-      // Check if file already exists
-      const existingFile = await this.checkFileExists(checksum);
-      if (existingFile) {
-        return existingFile;
-      }
+      // Check if file already exists (disabled for now)
+      // const existingFile = await this.checkFileExists(checksum);
+      // if (existingFile) {
+      //   return existingFile;
+      // }
 
       // Start chunked upload
       const uploadId = await this.initializeUpload(file.name, file.size, checksum);
@@ -78,7 +81,7 @@ export class ApiService {
       }
 
       // Finalize upload
-      const result = await this.finalizeUpload(uploadId);
+      const result = await this.finalizeUpload(uploadId, checksum);
       return result;
 
     } catch (error) {
@@ -100,33 +103,21 @@ export class ApiService {
   }
 
   /**
+   * @deprecated No longer needed - files are processed during upload completion
    * Process uploaded file (extract metadata and organize)
    */
-  async processFile(uploadId: string): Promise<ProcessResponse> {
-    const response = await fetch(`${this.baseUrl}/api/process`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ uploadId }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to process file: ${response.statusText}`);
-    }
-
-    return response.json();
+  async processFile(_uploadId: string): Promise<ProcessResponse> {
+    // Files are now processed automatically during upload completion
+    throw new Error('processFile is deprecated - files are processed during upload completion');
   }
 
   /**
+   * @deprecated No longer needed - files are processed during upload completion
    * Get processing status
    */
-  async getProcessStatus(processId: string): Promise<ProcessResponse> {
-    const response = await fetch(`${this.baseUrl}/api/process/status/${processId}`);
-    if (!response.ok) {
-      throw new Error(`Failed to get process status: ${response.statusText}`);
-    }
-    return response.json();
+  async getProcessStatus(_processId: string): Promise<ProcessResponse> {
+    // Files are now processed automatically during upload completion
+    throw new Error('getProcessStatus is deprecated - files are processed during upload completion');
   }
 
   /**
@@ -159,39 +150,23 @@ export class ApiService {
   // Private helper methods
 
   private async calculateChecksum(file: File): Promise<string> {
-    // Simple checksum calculation (in production, use a more robust hash)
+    // Use SHA256 to match backend implementation
     const buffer = await file.arrayBuffer();
-    let hash = 0;
-    const view = new Uint8Array(buffer);
-    
-    for (let i = 0; i < view.length; i++) {
-      hash = ((hash << 5) - hash + view[i]) & 0xffffffff;
-    }
-    
-    return Math.abs(hash).toString(16);
-  }
-
-  private async checkFileExists(checksum: string): Promise<UploadResponse | null> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/upload/check/${checksum}`);
-      if (response.ok) {
-        return response.json();
-      }
-      return null;
-    } catch {
-      return null;
-    }
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
   }
 
   private async initializeUpload(filename: string, size: number, checksum: string): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/api/upload/init`, {
+    const response = await fetch(`${this.baseUrl}/api/upload/start`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        filename,
-        size,
+        fileName: filename,
+        fileSize: size,
         checksum,
       }),
     });
@@ -207,9 +182,10 @@ export class ApiService {
   private async uploadChunk(uploadId: string, chunkIndex: number, chunk: Blob): Promise<void> {
     const formData = new FormData();
     formData.append('chunk', chunk);
-    formData.append('chunkIndex', chunkIndex.toString());
+    formData.append('sessionId', uploadId);
+    formData.append('chunkNumber', chunkIndex.toString());
 
-    const response = await fetch(`${this.baseUrl}/api/upload/chunk/${uploadId}`, {
+    const response = await fetch(`${this.baseUrl}/api/upload/chunk`, {
       method: 'POST',
       body: formData,
     });
@@ -219,9 +195,16 @@ export class ApiService {
     }
   }
 
-  private async finalizeUpload(uploadId: string): Promise<UploadResponse> {
-    const response = await fetch(`${this.baseUrl}/api/upload/finalize/${uploadId}`, {
+  private async finalizeUpload(uploadId: string, checksum: string): Promise<UploadResponse> {
+    const response = await fetch(`${this.baseUrl}/api/upload/complete`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sessionId: uploadId,
+        checksum: checksum,
+      }),
     });
 
     if (!response.ok) {
