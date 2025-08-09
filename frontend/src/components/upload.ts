@@ -39,6 +39,9 @@ export class SortifyUpload extends LitElement {
   @state()
   private isUploading = false;
 
+  @state()
+  private thumbnailCache = new Map<string, string>();
+
   private fileInputRef?: HTMLInputElement;
 
   render() {
@@ -131,7 +134,14 @@ export class SortifyUpload extends LitElement {
   private renderUploadItem(item: UploadFile) {
     const getFileIcon = (file: File) => {
       if (file.type.startsWith('image/')) {
-        return html`<div class="file-icon image">🖼️</div>`;
+        return html`<div class="file-icon image">
+          <img 
+            src="${this.getThumbnailUrl(file)}" 
+            alt="${file.name}"
+            class="thumbnail-image"
+            @error=${() => this.handleThumbnailError}
+          />
+        </div>`;
       } else if (file.type.startsWith('video/')) {
         return html`<div class="file-icon video">🎬</div>`;
       }
@@ -450,5 +460,35 @@ export class SortifyUpload extends LitElement {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  private getThumbnailUrl(file: File): string {
+    const cacheKey = `${file.name}-${file.size}-${file.lastModified}`;
+    
+    if (this.thumbnailCache.has(cacheKey)) {
+      return this.thumbnailCache.get(cacheKey)!;
+    }
+
+    const url = URL.createObjectURL(file);
+    this.thumbnailCache.set(cacheKey, url);
+    
+    return url;
+  }
+
+  private handleThumbnailError = (e: Event) => {
+    const img = e.target as HTMLImageElement;
+    const fileIcon = img.closest('.file-icon');
+    if (fileIcon) {
+      fileIcon.innerHTML = '🖼️';
+    }
+  };
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    // Clean up object URLs to prevent memory leaks
+    for (const url of this.thumbnailCache.values()) {
+      URL.revokeObjectURL(url);
+    }
+    this.thumbnailCache.clear();
   }
 }
