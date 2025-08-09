@@ -4,8 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-
-	"github.com/Steven-harris/sortify/backend/pkg/response"
 )
 
 func CORS(allowedOrigins string) func(http.Handler) http.Handler {
@@ -63,7 +61,7 @@ func Recovery(next http.Handler) http.Handler {
 					"method", r.Method,
 					"path", r.URL.Path,
 				)
-				response.InternalError(w, "Internal server error")
+				InternalError(w, "Internal server error")
 			}
 		}()
 		next.ServeHTTP(w, r)

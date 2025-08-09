@@ -49,10 +49,6 @@ backend-update:
     echo "🧹 Cleaning up Go modules..." 
     go mod tidy
 
-backend-download:
-    #!/usr/bin/env bash
-    go mod download
-
 # Frontend commands
 frontend-dev:
     #!/usr/bin/env bash
@@ -104,13 +100,14 @@ build: backend-build frontend-build
 
 test: backend-test frontend-test
 
-install: backend-download frontend-install
+install: frontend-install
 
 # Docker commands
 docker-build:
     #!/usr/bin/env bash
     echo "🐳 Building Docker image..."
-    docker build -t sortify:latest -f docker/Dockerfile .
+    # Use docker build (which uses buildx under the hood in modern Docker)
+    docker build -t sortify:latest .
 
 docker-run:
     #!/usr/bin/env bash
@@ -123,45 +120,19 @@ docker-dev:
     just docker-build
     just docker-run
 
-# Database commands
-db-create:
+docker-push REGISTRY IMAGE_NAME:
     #!/usr/bin/env bash
-    cd backend
-    echo "🗄️  Creating database directories..."
-    mkdir -p data
-
-db-reset:
-    #!/usr/bin/env bash
-    cd backend
-    echo "🗄️  Resetting database..."
-    rm -f data/sortify.db
-    just db-create
-
-# Media management
-media-setup:
-    #!/usr/bin/env bash
-    echo "📁 Setting up media directories..."
-    mkdir -p media
-    mkdir -p media/temp
-    chmod 755 media
-    chmod 755 media/temp
-
-media-clean:
-    #!/usr/bin/env bash
-    echo "🧹 Cleaning temporary media files..."
-    rm -rf media/temp/*
-
-media-reset:
-    #!/usr/bin/env bash
-    echo "🧹 Resetting all media (WARNING: This will delete all uploaded files)..."
-    read -p "Are you sure? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm -rf media/*
-        just media-setup
-        echo "✅ Media directories reset"
+    echo "🐳 Building and pushing Docker image..."
+    # Try buildx for multi-platform, fallback to regular build + push
+    if docker buildx version >/dev/null 2>&1; then
+        echo "Using buildx for multi-platform build and push..."
+        docker buildx build --platform linux/amd64,linux/arm64 \
+            -t {{REGISTRY}}/{{IMAGE_NAME}}:latest \
+            --push .
     else
-        echo "❌ Operation cancelled"
+        echo "Using regular build and push..."
+        docker build -t {{REGISTRY}}/{{IMAGE_NAME}}:latest .
+        docker push {{REGISTRY}}/{{IMAGE_NAME}}:latest
     fi
 
 # Development utilities
@@ -171,16 +142,12 @@ clean:
     cd backend && rm -rf bin/
     rm -rf dist/
     rm -rf node_modules/.cache/
-    just media-clean
 
 setup:
     #!/usr/bin/env bash
     echo "⚙️  Setting up Sortify development environment..."
     echo "📦 Installing dependencies..."
     just install
-    echo "📁 Setting up directories..."
-    just media-setup
-    just db-create
     echo "✅ Setup complete!"
     echo ""
     echo "🚀 To start development:"
@@ -203,18 +170,6 @@ api-test-upload:
         -d '{"filename":"test.jpg","fileSize":1024,"chunk_size":256,"checksum":"abc123"}' \
         | jq .
 
-# Git helpers
-git-status:
-    #!/usr/bin/env bash
-    echo "📊 Git status..."
-    git status
-
-git-setup:
-    #!/usr/bin/env bash
-    echo "⚙️  Setting up Git hooks and configuration..."
-    # Add any git setup commands here
-    echo "✅ Git setup complete"
-
 # Deployment
 deploy-staging:
     #!/usr/bin/env bash
@@ -228,6 +183,21 @@ deploy-production:
     echo "🚀 Deploying to production..."
     echo "⚠️  This should be done via GitHub Actions"
     echo "   Push to main branch to trigger deployment"
+
+docker-compose-up:
+    #!/usr/bin/env bash
+    echo "🐳 Starting services with docker-compose..."
+    docker-compose up -d
+
+docker-compose-down:
+    #!/usr/bin/env bash
+    echo "🐳 Stopping services with docker-compose..."
+    docker-compose down
+
+docker-compose-logs:
+    #!/usr/bin/env bash
+    echo "📋 Showing docker-compose logs..."
+    docker-compose logs -f
 
 # Utilities
 logs:

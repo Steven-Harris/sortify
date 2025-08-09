@@ -1,0 +1,83 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependencies and build artifacts
+node_modules/
+backend/vendor/
+dist/
+build/
+tmp/
+
+# Test files and coverage
+*_test.go
+coverage.out
+test/
+tests/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+*.iml
+*.ipr
+*.iws
+
+# Log files
+*.log
+logs/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Media files (for security)
+media/
+
+# Air (Go live reload)
+.air.toml
+tmp/
+
+# Go specific
+backend/bin/
+backend/pkg/

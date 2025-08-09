@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/Steven-harris/sortify/backend/internal/media"
-	"github.com/Steven-harris/sortify/backend/pkg/response"
 )
 
 type MediaHandlers struct {
@@ -23,7 +22,7 @@ func NewMediaHandlers(mediaPath string) *MediaHandlers {
 
 func (h *MediaHandlers) BrowseHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -51,11 +50,11 @@ func (h *MediaHandlers) BrowseHandler(w http.ResponseWriter, r *http.Request) {
 		structure, err := h.organizer.GetDirectoryStructure()
 		if err != nil {
 			slog.Error("Failed to get directory structure", "error", err)
-			response.InternalError(w, "Failed to retrieve media structure")
+			InternalError(w, "Failed to retrieve media structure")
 			return
 		}
 
-		response.Success(w, map[string]any{
+		Success(w, map[string]any{
 			"type":      "structure",
 			"structure": structure,
 		})
@@ -65,11 +64,11 @@ func (h *MediaHandlers) BrowseHandler(w http.ResponseWriter, r *http.Request) {
 	files, err := h.getFilesInDirectory(year, month, limitInt, offsetInt)
 	if err != nil {
 		slog.Error("Failed to get files", "error", err, "year", year, "month", month)
-		response.InternalError(w, "Failed to retrieve files")
+		InternalError(w, "Failed to retrieve files")
 		return
 	}
 
-	response.Success(w, map[string]any{
+	Success(w, map[string]any{
 		"type":   "files",
 		"year":   year,
 		"month":  month,
@@ -81,7 +80,7 @@ func (h *MediaHandlers) BrowseHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *MediaHandlers) MetadataHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -91,12 +90,12 @@ func (h *MediaHandlers) MetadataHandler(w http.ResponseWriter, r *http.Request) 
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		slog.Error("Failed to decode metadata request", "error", err)
-		response.BadRequest(w, "Invalid request body")
+		BadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.FilePath == "" {
-		response.BadRequest(w, "File path is required")
+		BadRequest(w, "File path is required")
 		return
 	}
 
@@ -104,28 +103,28 @@ func (h *MediaHandlers) MetadataHandler(w http.ResponseWriter, r *http.Request) 
 	info, err := extractor.ExtractMetadata(req.FilePath)
 	if err != nil {
 		slog.Error("Failed to extract metadata", "error", err, "filePath", req.FilePath)
-		response.InternalError(w, "Failed to extract metadata")
+		InternalError(w, "Failed to extract metadata")
 		return
 	}
 
-	response.Success(w, info)
+	Success(w, info)
 }
 
 func (h *MediaHandlers) UserDateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
 	var req media.DateExtractionResponse
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		slog.Error("Failed to decode user date request", "error", err)
-		response.BadRequest(w, "Invalid request body")
+		BadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.SessionID == "" {
-		response.BadRequest(w, "Session ID is required")
+		BadRequest(w, "Session ID is required")
 		return
 	}
 
@@ -135,12 +134,12 @@ func (h *MediaHandlers) UserDateHandler(w http.ResponseWriter, r *http.Request) 
 		"dateTaken", req.DateTaken,
 	)
 
-	response.NoContent(w)
+	NoContent(w)
 }
 
 func (h *MediaHandlers) ListFilesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -168,7 +167,7 @@ func (h *MediaHandlers) ListFilesHandler(w http.ResponseWriter, r *http.Request)
 	allFiles, err := h.organizer.ScanFiles("", "", 10000, 0)
 	if err != nil {
 		slog.Error("Failed to scan files", "error", err)
-		response.InternalError(w, "Failed to retrieve files")
+		InternalError(w, "Failed to retrieve files")
 		return
 	}
 
@@ -206,7 +205,7 @@ func (h *MediaHandlers) ListFilesHandler(w http.ResponseWriter, r *http.Request)
 		filteredFiles = filteredFiles[start:end]
 	}
 
-	response.Success(w, map[string]any{
+	Success(w, map[string]any{
 		"files":  filteredFiles,
 		"total":  len(allFiles),
 		"limit":  limitInt,

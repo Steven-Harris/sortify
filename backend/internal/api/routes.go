@@ -1,6 +1,11 @@
 package api
 
-import "net/http"
+import (
+	"io/fs"
+	"net/http"
+	"os"
+	"path/filepath"
+)
 
 func (s *Server) setupRoutes() http.Handler {
 	mux := http.NewServeMux()
@@ -11,8 +16,7 @@ func (s *Server) setupRoutes() http.Handler {
 	handler = Logging(handler)
 	handler = Recovery(handler)
 
-	// Register routes
-	mux.HandleFunc("/", s.RootHandler)
+	// API routes
 	mux.HandleFunc("/api/health", s.HealthHandler)
 
 	// Upload routes
@@ -34,8 +38,71 @@ func (s *Server) setupRoutes() http.Handler {
 	mediaFileServer := http.FileServer(http.Dir(s.config.MediaPath))
 	mux.Handle("/media/", http.StripPrefix("/media/", mediaFileServer))
 
-	// Catch-all for undefined routes
+	// Catch-all for undefined API routes
 	mux.HandleFunc("/api/", s.NotFoundHandler)
 
+	// Serve frontend static files
+	mux.HandleFunc("/", s.serveFrontend)
+
 	return handler
+}
+
+func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
+	// Try embedded files first (available when built with embedded frontend)
+	distPath := filepath.Join("./web")
+	if _, err := os.Stat(distPath); err == nil {
+		if r.URL.Path != "/" {
+			filePath := filepath.Join(distPath, r.URL.Path)
+			if _, err := os.Stat(filePath); err == nil {
+				http.ServeFile(w, r, filePath)
+				return
+			}
+		}
+
+		// Serve index.html for SPA routing
+		http.ServeFile(w, r, filepath.Join(distPath, "index.html"))
+		return
+	}
+
+	// Fallback to local frontend/dist directory for development
+	distPath = filepath.Join("../frontend/dist")
+	if _, err := os.Stat(distPath); err == nil {
+		if r.URL.Path != "/" {
+			filePath := filepath.Join(distPath, r.URL.Path)
+			if _, err := os.Stat(filePath); err == nil {
+				http.ServeFile(w, r, filePath)
+				return
+			}
+		}
+
+		// Serve index.html for SPA routing
+		http.ServeFile(w, r, filepath.Join(distPath, "index.html"))
+		return
+	}
+
+	// No frontend available, serve a simple message
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`
+		<!DOCTYPE html>
+		<html>
+		<head><title>Sortify API</title></head>
+		<body>
+			<h1>Sortify API Server</h1>
+			<p>The frontend is not yet built. Build the frontend or access the API at <a href="/api/health">/api/health</a></p>
+			<p>Available endpoints:</p>
+			<ul>
+				<li><a href="/api/health">Health Check</a></li>
+				<li>/api/upload/* - Upload endpoints</li>
+				<li>/api/media/* - Media browsing endpoints</li>
+			</ul>
+		</body>
+		</html>
+	`))
+}
+
+// getEmbeddedFS returns the embedded filesystem if available
+func getEmbeddedFS() fs.FS {
+	// This will be overridden in embed.go when frontend is embedded
+	return nil
 }

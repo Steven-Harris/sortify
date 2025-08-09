@@ -102,23 +102,6 @@ export class ApiService {
     return response.json();
   }
 
-  /**
-   * @deprecated No longer needed - files are processed during upload completion
-   * Process uploaded file (extract metadata and organize)
-   */
-  async processFile(_uploadId: string): Promise<ProcessResponse> {
-    // Files are now processed automatically during upload completion
-    throw new Error('processFile is deprecated - files are processed during upload completion');
-  }
-
-  /**
-   * @deprecated No longer needed - files are processed during upload completion
-   * Get processing status
-   */
-  async getProcessStatus(_processId: string): Promise<ProcessResponse> {
-    // Files are now processed automatically during upload completion
-    throw new Error('getProcessStatus is deprecated - files are processed during upload completion');
-  }
 
   /**
    * List organized files
