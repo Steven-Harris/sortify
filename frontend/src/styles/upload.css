@@ -3,6 +3,139 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Modern Button Styles */
+.btn-primary {
+  padding: 0.875rem 2rem;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: white;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  transform: translateY(-1px);
+  box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  background: rgba(51, 65, 85, 0.8);
+  color: #cbd5e1;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(71, 85, 105, 0.5);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-secondary:hover {
+  background: #475569;
+  color: white;
+  border-color: #64748b;
+}
+
+.btn-danger {
+  padding: 0.5rem 1rem;
+  background: rgba(185, 28, 28, 0.8);
+  color: #fecaca;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  color: white;
+  border-color: #ef4444;
+}
+
+.btn-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.btn-icon:hover {
+  transform: scale(1.05);
+}
+
+.btn-icon-neutral {
+  background: rgba(51, 65, 85, 0.8);
+  color: #94a3b8;
+  border-color: rgba(71, 85, 105, 0.5);
+}
+
+.btn-icon-neutral:hover {
+  background: #475569;
+  color: white;
+  border-color: #64748b;
+}
+
+.btn-icon-success {
+  background: rgba(5, 150, 105, 0.8);
+  color: #a7f3d0;
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.btn-icon-success:hover {
+  background: #059669;
+  color: white;
+  border-color: #10b981;
+}
+
+.btn-icon-danger {
+  background: rgba(185, 28, 28, 0.8);
+  color: #fecaca;
+  border-color: rgba(220, 38, 38, 0.5);
+}
+
+.btn-icon-danger:hover {
+  background: #dc2626;
+  color: white;
+  border-color: #ef4444;
+}
+
+.queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.item-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .upload-container {
   max-width: 56rem; /* max-w-4xl */
   margin: 0 auto;

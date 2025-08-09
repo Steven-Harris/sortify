@@ -9,23 +9,10 @@ import './components/upload.js';
 @customElement('sortify-app')
 export class SortifyApp extends LitElement {
   static styles = css`
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-    
     :host {
       display: block;
       width: 100vw;
       height: 100vh;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      color: #f8fafc;
-      margin: 0;
-      padding: 0;
-      --primary: #3b82f6;
-      --slate-100: #f1f5f9;
-      --slate-400: #94a3b8;
-      --slate-700: #334155;
-      --slate-800: #1e293b;
-      --slate-900: #0f172a;
     }
 
     .app-layout {
@@ -42,20 +29,31 @@ export class SortifyApp extends LitElement {
     }
 
     .header {
-      background: rgba(15, 23, 42, 0.9);
-      border-bottom: 1px solid var(--slate-700);
-      padding: 1.5rem 2rem;
+      background: rgba(15, 23, 42, 0.95);
+      border-bottom: 1px solid var(--slate-600);
+      padding: 2rem;
       position: sticky;
       top: 0;
       z-index: 10;
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(12px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
 
     .header-title {
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--slate-100);
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--slate-50);
       margin: 0;
+      text-align: center;
+      background: linear-gradient(135deg, var(--primary-400), var(--primary-600));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+      letter-spacing: -0.025em;
     }
 
     .content-area {
@@ -71,13 +69,22 @@ export class SortifyApp extends LitElement {
 
     @media (max-width: 1024px) {
       .header {
-        padding: 1rem 1.5rem;
+        padding: 1.5rem 1rem;
       }
       .header-title {
-        font-size: 1.5rem;
+        font-size: 2rem;
       }
       .content-area {
         padding: 1rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .header {
+        padding: 1rem;
+      }
+      .header-title {
+        font-size: 1.75rem;
       }
     }
   `;

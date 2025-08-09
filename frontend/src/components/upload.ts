@@ -66,7 +66,7 @@ export class SortifyUpload extends LitElement {
               Supports JPG, PNG, GIF, MP4, MOV and more. No file size limit.
             </p>
             <button 
-              class="upload-button"
+              class="btn-primary"
               ?disabled=${this.disabled}
             >
               Choose Files
@@ -93,19 +93,19 @@ export class SortifyUpload extends LitElement {
               </h4>
               <div class="queue-actions">
                 <button 
-                  class="btn btn-secondary"
+                  class="btn-secondary"
                   @click=${this.pauseAll}
                 >
                   ${this.isUploading ? '⏸️ Pause All' : '▶️ Resume All'}
                 </button>
                 <button 
-                  class="btn btn-secondary"
+                  class="btn-secondary"
                   @click=${this.clearCompleted}
                 >
                   🗑️ Clear Completed
                 </button>
                 <button 
-                  class="btn btn-secondary"
+                  class="btn-danger"
                   @click=${this.clearAll}
                 >
                   ❌ Clear All
@@ -189,7 +189,7 @@ export class SortifyUpload extends LitElement {
         <div class="item-actions">
           ${item.status === 'uploading' ? html`
             <button 
-              class="action-btn"
+              class="btn-icon btn-icon-neutral"
               @click=${() => this.pauseUpload(item.id)}
               title="Pause upload"
             >
@@ -197,7 +197,7 @@ export class SortifyUpload extends LitElement {
             </button>
           ` : item.status === 'paused' ? html`
             <button 
-              class="action-btn"
+              class="btn-icon btn-icon-success"
               @click=${() => this.resumeUpload(item.id)}
               title="Resume upload"
             >
@@ -206,7 +206,7 @@ export class SortifyUpload extends LitElement {
           ` : ''}
           
           <button 
-            class="action-btn"
+            class="btn-icon btn-icon-danger"
             @click=${() => this.removeFromQueue(item.id)}
             title="Remove from queue"
           >
