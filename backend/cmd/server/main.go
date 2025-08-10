@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Steven-harris/sortify/backend/internal/api"
-	"github.com/Steven-harris/sortify/backend/internal/config"
+	"github.com/Steven-Harris/sortify/backend/internal/api"
+	"github.com/Steven-Harris/sortify/backend/internal/config"
 )
 
 func main() {

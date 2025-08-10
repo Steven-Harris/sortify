@@ -10,7 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Steven-harris/sortify/backend/internal/models"
+	"github.com/Steven-Harris/sortify/backend/internal/models"
+	"github.com/Steven-Harris/sortify/backend/internal/security"
 )
 
 type Manager struct {
@@ -21,7 +22,10 @@ type Manager struct {
 }
 
 func NewManager(tempDir string, maxSessions int) *Manager {
-	os.MkdirAll(tempDir, 0600)
+	if err := os.MkdirAll(tempDir, 0600); err != nil {
+		// Log error but don't fail - we'll handle directory creation issues when needed
+		slog.Warn("Failed to create temp directory during manager initialization", "error", err, "tempDir", tempDir)
+	}
 
 	return &Manager{
 		sessions:    make(map[string]*models.UploadSession),
@@ -44,6 +48,12 @@ func (m *Manager) CreateSession(req *models.StartUploadRequest) (*models.UploadS
 
 	tempPath := filepath.Join(m.tempDir, sessionID+".tmp")
 
+	// Validate temp path using security helper and ensure it's within temp directory
+	cleanPath, err := security.ValidatePathWithinDirectory(tempPath, m.tempDir)
+	if err != nil {
+		return nil, fmt.Errorf("temp path validation failed: %w", err)
+	}
+
 	session := &models.UploadSession{
 		ID:           sessionID,
 		FileName:     req.FileName,
@@ -52,14 +62,14 @@ func (m *Manager) CreateSession(req *models.StartUploadRequest) (*models.UploadS
 		TotalChunks:  totalChunks,
 		UploadedSize: 0,
 		Checksum:     req.Checksum,
-		TempPath:     tempPath,
+		TempPath:     cleanPath,
 		Metadata:     req.Metadata,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 		Status:       models.StatusInitialized,
 	}
 
-	file, err := os.Create(tempPath)
+	file, err := os.Create(cleanPath) // #nosec G304 - path validated by security.ValidatePathWithinDirectory
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary file: %w", err)
 	}
@@ -110,7 +120,7 @@ func (m *Manager) UploadChunk(sessionID string, chunkNumber int, chunkData []byt
 
 	offset := int64(chunkNumber) * session.ChunkSize
 
-	file, err := os.OpenFile(session.TempPath, os.O_WRONLY, 0644)
+	file, err := os.OpenFile(session.TempPath, os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to open temporary file: %w", err)
 	}
@@ -291,7 +301,13 @@ func (m *Manager) CleanupSession(sessionID string) error {
 }
 
 func (m *Manager) calculateFileChecksum(filePath string) (string, error) {
-	file, err := os.Open(filePath)
+	// Validate file path using security helper
+	cleanPath, err := security.ValidateFilePath(filePath)
+	if err != nil {
+		return "", fmt.Errorf("path validation failed: %w", err)
+	}
+
+	file, err := os.Open(cleanPath) // #nosec G304 - path validated by security.ValidateFilePath
 	if err != nil {
 		return "", err
 	}

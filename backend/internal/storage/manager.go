@@ -9,7 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Steven-harris/sortify/backend/internal/media"
+	"github.com/Steven-Harris/sortify/backend/internal/media"
+	"github.com/Steven-Harris/sortify/backend/internal/security"
 )
 
 type Manager struct {
@@ -130,11 +131,17 @@ func (m *Manager) getFinalPath(targetDir, filename, tempPath string) (string, bo
 }
 
 func (m *Manager) moveFile(src, dst string) error {
-	if err := os.Rename(src, dst); err == nil {
+	// Validate source and destination paths
+	cleanSrc, cleanDst, err := security.ValidateFilePathPair(src, dst)
+	if err != nil {
+		return fmt.Errorf("path validation failed: %w", err)
+	}
+
+	if err := os.Rename(cleanSrc, cleanDst); err == nil {
 		return nil
 	}
 
-	srcFile, err := os.Open(src)
+	srcFile, err := os.Open(cleanSrc) // #nosec G304 - path validated by security.ValidateFilePathPair
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
@@ -144,7 +151,7 @@ func (m *Manager) moveFile(src, dst string) error {
 		}
 	}()
 
-	dstFile, err := os.Create(dst)
+	dstFile, err := os.Create(cleanDst)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
@@ -155,28 +162,34 @@ func (m *Manager) moveFile(src, dst string) error {
 	}()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		if removeErr := os.Remove(dst); removeErr != nil {
-			slog.Warn("Failed to clean up partial file", "error", removeErr, "path", dst)
+		if removeErr := os.Remove(cleanDst); removeErr != nil {
+			slog.Warn("Failed to clean up partial file", "error", removeErr, "path", cleanDst)
 		}
 		return fmt.Errorf("failed to copy file contents: %w", err)
 	}
 
 	if err := dstFile.Sync(); err != nil {
-		if removeErr := os.Remove(dst); removeErr != nil {
-			slog.Warn("Failed to clean up destination file after sync error", "error", removeErr, "path", dst)
+		if removeErr := os.Remove(cleanDst); removeErr != nil {
+			slog.Warn("Failed to clean up destination file after sync error", "error", removeErr, "path", cleanDst)
 		}
 		return fmt.Errorf("failed to sync file: %w", err)
 	}
 
-	if err := os.Remove(src); err != nil {
-		slog.Warn("Failed to remove source file", "error", err, "file", src)
+	if err := os.Remove(cleanSrc); err != nil {
+		slog.Warn("Failed to remove source file", "error", err, "file", cleanSrc)
 	}
 
 	return nil
 }
 
 func (m *Manager) calculateChecksum(filePath string) (string, error) {
-	file, err := os.Open(filePath)
+	// Validate file path
+	cleanPath, err := security.ValidateFilePath(filePath)
+	if err != nil {
+		return "", fmt.Errorf("path validation failed: %w", err)
+	}
+
+	file, err := os.Open(cleanPath) // #nosec G304 - path validated by security.ValidateFilePath
 	if err != nil {
 		return "", err
 	}

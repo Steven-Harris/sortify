@@ -4,10 +4,10 @@
 
 Sortify automatically organizes your photos and media files by date with a clean, modern web interface. Simply drag and drop your files, and Sortify will intelligently extract dates from filenames and EXIF data to organize them into a structured folder hierarchy.
 
-![License](https://img.shields.io/github/license/Steven-harris/sortify)
+![License](https://img.shields.io/github/license/Steven-Harris/sortify)
 ![Docker Pulls](https://img.shields.io/docker/pulls/steharris/sortify)
-![GitHub release](https://img.shields.io/github/v/release/Steven-harris/sortify)
-![Build Status](https://img.shields.io/github/actions/workflow/status/Steven-harris/sortify/test.yml)
+![GitHub release](https://img.shields.io/github/v/release/Steven-Harris/sortify)
+![Build Status](https://img.shields.io/github/actions/workflow/status/Steven-Harris/sortify/test.yml)
 
 <a href="https://www.buymeacoffee.com/githelm" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 150px !important;" ></a>
 
@@ -28,7 +28,7 @@ Sortify automatically organizes your photos and media files by date with a clean
 
 1. **Download docker-compose.yml**:
 ```bash
-curl -O https://raw.githubusercontent.com/Steven-harris/sortify/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/Steven-Harris/sortify/main/docker-compose.yml
 ```
 
 2. **Start Sortify**:
@@ -48,7 +48,7 @@ docker run -d \
   -e TEMP_PATH=/tmp \
   -v ./media:/media:rw \
   -v ./temp:/tmp:rw \
-  steven-harris/sortify:latest
+  Steven-Harris/sortify:latest
 ```
 
 ## 📋 Configuration
@@ -81,7 +81,7 @@ docker run -d \
   -p 8080:8080 \
   -v ./media:/media:rw \
   -v ./temp:/tmp:rw \
-  steven-harris/sortify:latest
+  Steven-Harris/sortify:latest
 ```
 
 **Find your user ID:**
@@ -109,7 +109,7 @@ sudo chown -R 1234:1234 ./media ./temp
 
 ```bash
 # Clone the repository
-git clone https://github.com/Steven-harris/sortify.git
+git clone https://github.com/Steven-Harris/sortify.git
 cd sortify
 
 # Install dependencies (if using just)
@@ -199,7 +199,7 @@ media/
 ```yaml
 services:
   sortify:
-    image: steven-harris/sortify:latest
+    image: Steven-Harris/sortify:latest
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -280,7 +280,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Lit](https://lit.dev/) - Web components framework
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
-- [Fiber](https://gofiber.io/) - Express-inspired web framework for Go
 - [Vite](https://vitejs.dev/) - Next generation frontend tooling
 
 ---

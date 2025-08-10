@@ -1,4 +1,4 @@
-module github.com/Steven-harris/sortify/backend
+module github.com/Steven-Harris/sortify/backend
 
 go 1.24
 

@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Steven-harris/sortify/backend/internal/media"
-	"github.com/Steven-harris/sortify/backend/internal/models"
-	"github.com/Steven-harris/sortify/backend/internal/upload"
+	"github.com/Steven-Harris/sortify/backend/internal/media"
+	"github.com/Steven-Harris/sortify/backend/internal/models"
+	"github.com/Steven-Harris/sortify/backend/internal/upload"
 	"github.com/stretchr/testify/assert"
 )
 

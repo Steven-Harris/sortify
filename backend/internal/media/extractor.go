@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Steven-Harris/sortify/backend/internal/security"
 	"github.com/rwcarlsen/goexif/exif"
 )
 
@@ -77,18 +78,9 @@ func (e *Extractor) extractDateFromEXIF(filePath string, info *MediaInfo) {
 	}
 
 	// Validate file path to prevent directory traversal attacks
-	cleanPath := filepath.Clean(filePath)
-
-	// Check for path traversal attempts
-	if strings.Contains(cleanPath, "..") {
-		slog.Warn("Path traversal attempt detected", "path", filePath)
-		return
-	}
-
-	// Additional validation: ensure the path doesn't start with suspicious patterns
-	if strings.HasPrefix(cleanPath, "/etc/") || strings.HasPrefix(cleanPath, "/root/") ||
-		strings.HasPrefix(cleanPath, "/home/") && !strings.Contains(cleanPath, "/tmp/") {
-		slog.Warn("Potentially unsafe file path detected", "path", filePath)
+	cleanPath, err := security.ValidateFilePath(filePath)
+	if err != nil {
+		slog.Warn("Invalid file path for EXIF extraction", "error", err, "path", filePath)
 		return
 	}
 

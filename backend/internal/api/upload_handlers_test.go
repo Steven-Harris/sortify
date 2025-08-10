@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Steven-harris/sortify/backend/internal/models"
+	"github.com/Steven-Harris/sortify/backend/internal/models"
 	"github.com/stretchr/testify/assert"
 )
 

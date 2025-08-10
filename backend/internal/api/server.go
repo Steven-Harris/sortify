@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Steven-harris/sortify/backend/internal/config"
+	"github.com/Steven-Harris/sortify/backend/internal/config"
 )
 
 type Server struct {

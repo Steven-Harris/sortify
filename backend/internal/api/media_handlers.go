@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Steven-harris/sortify/backend/internal/media"
+	"github.com/Steven-Harris/sortify/backend/internal/media"
 )
 
 type MediaHandlers struct {

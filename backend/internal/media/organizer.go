@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/Steven-Harris/sortify/backend/internal/security"
 )
 
 type Organizer struct {
@@ -62,7 +64,7 @@ func (o *Organizer) OrganizeFile(tempFilePath, originalFileName string) (*MediaI
 		return nil, fmt.Errorf("failed to determine target directory: %w", err)
 	}
 
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create target directory: %w", err)
 	}
 
@@ -149,7 +151,13 @@ func (o *Organizer) checkDuplicate(filePath string, info *MediaInfo) (bool, erro
 }
 
 func (o *Organizer) calculateFileHash(filePath string) (string, error) {
-	file, err := os.Open(filePath)
+	// Validate file path using security helper
+	cleanPath, err := security.ValidateFilePath(filePath)
+	if err != nil {
+		return "", fmt.Errorf("path validation failed: %w", err)
+	}
+
+	file, err := os.Open(cleanPath)
 	if err != nil {
 		return "", err
 	}
@@ -282,37 +290,49 @@ func (o *Organizer) validateDate(dateTaken *time.Time) *time.Time {
 }
 
 func (o *Organizer) moveFile(src, dst string) error {
-	if err := os.Rename(src, dst); err == nil {
+	// Validate source and destination paths using security helper
+	cleanSrc, cleanDst, err := security.ValidateFilePathPair(src, dst)
+	if err != nil {
+		return fmt.Errorf("path validation failed: %w", err)
+	}
+
+	if err := os.Rename(cleanSrc, cleanDst); err == nil {
 		return nil
 	}
 
-	return o.copyAndDelete(src, dst)
+	return o.copyAndDelete(cleanSrc, cleanDst)
 }
 
 func (o *Organizer) copyAndDelete(src, dst string) error {
-	srcFile, err := os.Open(src)
+	// Validate source and destination paths using security helper
+	cleanSrc, cleanDst, err := security.ValidateFilePathPair(src, dst)
+	if err != nil {
+		return fmt.Errorf("path validation failed: %w", err)
+	}
+
+	srcFile, err := os.Open(cleanSrc)
 	if err != nil {
 		return err
 	}
 	defer srcFile.Close()
 
-	dstFile, err := os.Create(dst)
+	dstFile, err := os.Create(cleanDst)
 	if err != nil {
 		return err
 	}
 	defer dstFile.Close()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		os.Remove(dst)
+		os.Remove(cleanDst)
 		return err
 	}
 
 	if err := dstFile.Sync(); err != nil {
-		os.Remove(dst)
+		os.Remove(cleanDst)
 		return err
 	}
 
-	return os.Remove(src)
+	return os.Remove(cleanSrc)
 }
 
 func (o *Organizer) GetDirectoryStructure() (map[string]any, error) {
