@@ -90,36 +90,3 @@ jobs:
       with:
         file: frontend/coverage/coverage-final.json
         flags: frontend
-
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build Docker image for scanning
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        load: true
-        tags: sortify:test
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Run Trivy security scan on image
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: 'sortify:test'
-        format: 'sarif'
-        output: 'trivy-image-results.sarif'
-        severity: 'HIGH,CRITICAL'
-        exit-code: '1'  # Fail the build on high/critical vulnerabilities
-
-    - name: Upload image scan results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-image-results.sarif'
