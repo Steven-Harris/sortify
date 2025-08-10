@@ -1,5 +1,6 @@
 services:
   sortify:
+    image: steharris/sortify:latest
     build:
       context: .
       dockerfile: Dockerfile
