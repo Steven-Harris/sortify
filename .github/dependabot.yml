@@ -9,34 +9,50 @@ updates:
       time: "10:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "Steven-harris"
+      - "Steven-Harris"
     assignees:
-      - "Steven-harris"
+      - "Steven-Harris"
     commit-message:
       prefix: "deps(go)"
       include: "scope"
     labels:
       - "dependencies"
       - "go"
+    groups:
+      major-updates:
+        update-types:
+          - major
+      minor-patch-updates:
+        update-types:
+          - minor
+          - patch
 
   # NPM dependencies
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/frontend"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "10:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "Steven-harris"
+      - "Steven-Harris"
     assignees:
-      - "Steven-harris"
+      - "Steven-Harris"
     commit-message:
       prefix: "deps(npm)"
       include: "scope"
     labels:
       - "dependencies"
       - "frontend"
+    groups:
+      major-updates:
+        update-types:
+          - major
+      minor-patch-updates:
+        update-types:
+          - minor
+          - patch
 
   # Docker dependencies
   - package-ecosystem: "docker"
@@ -47,15 +63,23 @@ updates:
       time: "10:00"
     open-pull-requests-limit: 3
     reviewers:
-      - "Steven-harris"
+      - "Steven-Harris"
     assignees:
-      - "Steven-harris"
+      - "Steven-Harris"
     commit-message:
       prefix: "deps(docker)"
       include: "scope"
     labels:
       - "dependencies"
       - "docker"
+    groups:
+      major-updates:
+        update-types:
+          - major
+      minor-patch-updates:
+        update-types:
+          - minor
+          - patch  
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -66,12 +90,20 @@ updates:
       time: "10:00"
     open-pull-requests-limit: 3
     reviewers:
-      - "Steven-harris"
+      - "Steven-Harris"
     assignees:
-      - "Steven-harris"
+      - "Steven-Harris"
     commit-message:
       prefix: "deps(actions)"
       include: "scope"
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      major-updates:
+        update-types:
+          - major
+      minor-patch-updates:
+        update-types:
+          - minor
+          - patch
