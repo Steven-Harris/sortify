@@ -9,6 +9,11 @@ on:
     # Run weekly security scans
     - cron: '0 2 * * 1'
 
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
 jobs:
   code-scan:
     name: Code Security Scan
