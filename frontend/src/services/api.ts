@@ -39,7 +39,7 @@ export interface ProcessResponse {
 export class ApiService {
   private baseUrl: string;
 
-  constructor(baseUrl = 'http://localhost:8080') {
+  constructor(baseUrl = 'http://127.0.0.1:8080') {
     this.baseUrl = baseUrl;
   }
 

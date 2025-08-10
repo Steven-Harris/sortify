@@ -32,10 +32,7 @@ RUN go mod download
 # Copy source code
 COPY backend/ ./
 
-# Create a non-root user and group
-RUN addgroup -g 1000 appgroup && adduser -u 1000 -G appgroup -D appuser
-
-# Build the binary with optimizations
+# # Build the binary with optimizations
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags='-w -s -extldflags "-static"' \
     -a -installsuffix cgo \
@@ -52,10 +49,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
-
-# Switch to non-root user
-USER appuser
+    CMD wget --no-verbose --tries=1 http://localhost:8080/api/health || exit 1
 
 # Run the application
 ENTRYPOINT ["./sortify"]
