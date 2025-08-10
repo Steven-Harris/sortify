@@ -48,7 +48,7 @@ class MockFile extends Blob {
     return new ReadableStream()
   }
 
-  slice(start?: number, end?: number, contentType?: string): Blob {
+  slice(_start?: number, _end?: number, contentType?: string): Blob {
     return new MockFile([], this.name, { type: contentType })
   }
 }
@@ -64,7 +64,7 @@ class MockFileList extends Array<File> {
 class MockFormData {
   private data = new Map<string, any>()
 
-  append(name: string, value: string | Blob, fileName?: string): void {
+  append(name: string, value: string | Blob, _fileName?: string): void {
     this.data.set(name, value)
   }
 
@@ -80,7 +80,7 @@ class MockFormData {
     this.data.delete(name)
   }
 
-  set(name: string, value: string | Blob, fileName?: string): void {
+  set(name: string, value: string | Blob, _fileName?: string): void {
     this.data.set(name, value)
   }
 
