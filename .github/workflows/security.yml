@@ -50,7 +50,11 @@ jobs:
       run: |
         go install github.com/securego/gosec/v2/cmd/gosec@latest
         cd backend
-        gosec -fmt sarif -out ../gosec-results.sarif -no-fail -quiet ./...
+        echo "Running gosec in directory: $(pwd)"
+        gosec -fmt sarif -out ../gosec-results.sarif ./...
+        cd ..
+        echo "Contents of current directory:"
+        ls -la gosec-results.sarif || echo "gosec-results.sarif not found"
 
     - name: Upload Gosec scan results
       uses: github/codeql-action/upload-sarif@v3
