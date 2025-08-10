@@ -23,7 +23,7 @@ jobs:
         go-version: ${{ env.GO_VERSION }}
 
     - name: Cache Go modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/go-build
@@ -61,7 +61,7 @@ jobs:
         version: 8
 
     - name: Cache pnpm dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.pnpm-store
         key: ${{ runner.os }}-pnpm-${{ hashFiles('frontend/pnpm-lock.yaml') }}
