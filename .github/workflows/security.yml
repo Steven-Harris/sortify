@@ -56,3 +56,41 @@ jobs:
         exit-code: '1'
         ignore-unfixed: true
         severity: 'HIGH,CRITICAL'
+
+  docker-image-scan:
+    name: Docker Image Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image for security scanning
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: sortify:security-scan
+
+    - name: Run comprehensive Trivy scan on Docker image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'sortify:security-scan'
+        format: 'sarif'
+        output: 'trivy-docker-results.sarif'
+        severity: 'MEDIUM,HIGH,CRITICAL'
+
+    - name: Upload Docker image scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-docker-results.sarif'
+
+    - name: Run Trivy config scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'config'
+        scan-ref: '.'
+        format: 'table'
+        exit-code: '0'  # Don't fail on config issues, just report
