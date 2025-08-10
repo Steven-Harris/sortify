@@ -39,8 +39,10 @@ export interface ProcessResponse {
 export class ApiService {
   private baseUrl: string;
 
-  constructor(baseUrl = 'http://127.0.0.1:8080') {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl?: string) {
+    // Use relative URLs by default (works with any host/port)
+    // Only use provided baseUrl for development/testing
+    this.baseUrl = baseUrl || '';
   }
 
   /**
@@ -198,5 +200,28 @@ export class ApiService {
   }
 }
 
+// Create default instance with environment-aware base URL
+function createApiService(): ApiService {
+  // In development, use empty string to rely on Vite proxy
+  // In production, use relative URLs (same origin)
+  // Only use full URL if explicitly set via environment variable
+  const isDevelopment = import.meta.env.DEV;
+  
+  if (isDevelopment) {
+    // Check if we have an explicit API URL (for non-proxy development)
+    const explicitApiUrl = import.meta.env.VITE_API_URL;
+    if (explicitApiUrl) {
+      console.log('Using explicit API URL for development:', explicitApiUrl);
+      return new ApiService(explicitApiUrl);
+    }
+    // Use empty string to rely on Vite proxy
+    console.log('Using Vite proxy for API requests');
+    return new ApiService('');
+  }
+  
+  // Production: always use relative URLs
+  return new ApiService('');
+}
+
 // Export a default instance
-export const apiService = new ApiService();
+export const apiService = createApiService();

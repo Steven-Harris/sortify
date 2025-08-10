@@ -36,21 +36,26 @@ RUN apk add --no-cache git ca-certificates tzdata && \
 
 # Copy go mod files and download dependencies (cached layer)
 COPY backend/go.mod backend/go.sum ./
-RUN go mod download && go mod verify
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download && go mod verify
 
 # Copy only the source code needed for building (exclude tests and other files)
 COPY backend/cmd/ ./cmd/
 COPY backend/internal/ ./internal/
 
 # Build the main binary with optimizations
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build \
     -ldflags='-w -s -extldflags "-static"' \
     -trimpath \
     -buildvcs=false \
     -o sortify ./cmd/server
 
 # Build the healthcheck binary
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build \
     -ldflags='-w -s -extldflags "-static"' \
     -trimpath \
     -buildvcs=false \

@@ -3,6 +3,11 @@ name: Build and Deploy
 on:
   release:
     types: [ published ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release'
+        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
