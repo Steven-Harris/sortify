@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
@@ -14,10 +18,18 @@
     "tailwindcss": "^4.1.11"
   },
   "devDependencies": {
+    "@types/jsdom": "^21.1.7",
     "@vite-pwa/assets-generator": "^0.2.6",
+    "@vitest/coverage-v8": "^2.1.5",
+    "@vitest/ui": "^2.1.5",
+    "@web/test-runner": "^0.18.3",
+    "@web/test-runner-playwright": "^0.11.0",
+    "happy-dom": "^15.11.6",
+    "jsdom": "^26.1.0",
     "typescript": "~5.7.2",
     "vite": "^6.0.11",
     "vite-plugin-pwa": "^0.21.1",
+    "vitest": "^2.1.5",
     "workbox-window": "^7.3.0"
   },
   "resolutions": {

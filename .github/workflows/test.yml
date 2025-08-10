@@ -8,7 +8,7 @@ on:
 
 env:
   GO_VERSION: '1.22'
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
 
 jobs:
   test-backend:
@@ -72,14 +72,19 @@ jobs:
       working-directory: frontend
       run: pnpm install --no-frozen-lockfile
 
+    - name: Run frontend tests
+      working-directory: frontend
+      run: pnpm vitest run --coverage
+
     - name: Build frontend
       working-directory: frontend
       run: pnpm build
 
-    # Uncomment when frontend tests are added
-    # - name: Run frontend tests
-    #   working-directory: frontend
-    #   run: pnpm test
+    - name: Upload frontend coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: frontend/coverage/coverage-final.json
+        flags: frontend
 
   security-scan:
     name: Security Scan

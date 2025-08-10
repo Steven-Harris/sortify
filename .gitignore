@@ -29,3 +29,4 @@ tmp/*
 
 # app
 backend/media
+coverage/*
