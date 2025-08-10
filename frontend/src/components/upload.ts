@@ -180,19 +180,21 @@ export class SortifyUpload extends LitElement {
           </div>
         </div>
 
-        <div class="progress-container">
-          <div class="progress-bar">
-            <div 
-              class="progress-fill" 
-              style="width: ${item.progress}%"
-            ></div>
+        ${item.status !== 'completed' ? html`
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div 
+                class="progress-fill" 
+                style="width: ${item.progress}%"
+              ></div>
+            </div>
+            <div class="progress-text">
+              ${item.progress}% 
+              ${item.status === 'uploading' ? 'uploading' : ''}
+              ${item.status === 'processing' ? 'processing' : ''}
+            </div>
           </div>
-          <div class="progress-text">
-            ${item.progress}% 
-            ${item.status === 'uploading' ? 'uploading' : ''}
-            ${item.status === 'processing' ? 'processing' : ''}
-          </div>
-        </div>
+        ` : ''}
 
         ${getStatusBadge(item.status)}
 
@@ -213,15 +215,25 @@ export class SortifyUpload extends LitElement {
             >
               ▶️
             </button>
+          ` : item.status === 'error' ? html`
+            <button 
+              class="btn-icon btn-icon-success"
+              @click=${() => this.retryUpload(item.id)}
+              title="Retry upload"
+            >
+              🔄
+            </button>
           ` : ''}
           
-          <button 
-            class="btn-icon btn-icon-danger"
-            @click=${() => this.removeFromQueue(item.id)}
-            title="Remove from queue"
-          >
-            🗑️
-          </button>
+          ${item.status !== 'completed' ? html`
+            <button 
+              class="btn-icon btn-icon-danger"
+              @click=${() => this.removeFromQueue(item.id)}
+              title="Remove from queue"
+            >
+              🗑️
+            </button>
+          ` : ''}
         </div>
       </div>
     `;
@@ -313,8 +325,7 @@ export class SortifyUpload extends LitElement {
 
     try {
       await this.uploadFile(nextItem);
-      nextItem.status = 'completed';
-      nextItem.progress = 100;
+      // Status is set within uploadFile method based on actual outcome
     } catch (error) {
       nextItem.status = 'error';
       nextItem.error = error instanceof Error ? error.message : 'Upload failed';
@@ -396,6 +407,18 @@ export class SortifyUpload extends LitElement {
       item.status = 'pending';
       item.progress = 0; // Reset progress for retry
       item.error = undefined;
+      this.requestUpdate();
+      this.startNextUpload();
+    }
+  }
+
+  private retryUpload(id: string) {
+    const item = this.uploadQueue.find(item => item.id === id);
+    if (item && item.status === 'error') {
+      item.status = 'pending';
+      item.progress = 0; // Reset progress for retry
+      item.error = undefined;
+      item.abortController = undefined; // Clear old abort controller
       this.requestUpdate();
       this.startNextUpload();
     }
