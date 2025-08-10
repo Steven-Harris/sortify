@@ -84,7 +84,7 @@ func (e *Extractor) extractDateFromEXIF(filePath string, info *MediaInfo) {
 		return
 	}
 
-	file, err := os.Open(cleanPath)
+	file, err := os.Open(cleanPath) // #nosec G304 - path validated by security.ValidateFilePath
 	if err != nil {
 		slog.Debug("Failed to open file for EXIF", "error", err, "file", filePath)
 		return

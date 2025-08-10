@@ -151,7 +151,7 @@ func (m *Manager) moveFile(src, dst string) error {
 		}
 	}()
 
-	dstFile, err := os.Create(cleanDst)
+	dstFile, err := os.Create(cleanDst) // #nosec G304 - path validated by security.ValidateFilePathPair
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}

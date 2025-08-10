@@ -55,7 +55,9 @@ func (o *Organizer) OrganizeFile(tempFilePath, originalFileName string) (*MediaI
 		slog.Error("Failed to check for duplicates", "error", err, "file", originalFileName)
 	} else if duplicate {
 		slog.Info("Duplicate file detected, skipping", "file", originalFileName)
-		os.Remove(tempFilePath) // Clean up temp file
+		if err := os.Remove(tempFilePath); err != nil {
+			slog.Warn("Failed to remove duplicate temp file", "error", err, "path", tempFilePath)
+		}
 		return info, nil
 	}
 
@@ -157,7 +159,7 @@ func (o *Organizer) calculateFileHash(filePath string) (string, error) {
 		return "", fmt.Errorf("path validation failed: %w", err)
 	}
 
-	file, err := os.Open(cleanPath)
+	file, err := os.Open(cleanPath) // #nosec G304 - path validated by security.ValidateFilePath
 	if err != nil {
 		return "", err
 	}
@@ -310,25 +312,29 @@ func (o *Organizer) copyAndDelete(src, dst string) error {
 		return fmt.Errorf("path validation failed: %w", err)
 	}
 
-	srcFile, err := os.Open(cleanSrc)
+	srcFile, err := os.Open(cleanSrc) // #nosec G304 - path validated by security.ValidateFilePathPair
 	if err != nil {
 		return err
 	}
 	defer srcFile.Close()
 
-	dstFile, err := os.Create(cleanDst)
+	dstFile, err := os.Create(cleanDst) // #nosec G304 - path validated by security.ValidateFilePathPair
 	if err != nil {
 		return err
 	}
 	defer dstFile.Close()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		os.Remove(cleanDst)
+		if removeErr := os.Remove(cleanDst); removeErr != nil {
+			slog.Warn("Failed to remove incomplete destination file", "error", removeErr, "path", cleanDst)
+		}
 		return err
 	}
 
 	if err := dstFile.Sync(); err != nil {
-		os.Remove(cleanDst)
+		if removeErr := os.Remove(cleanDst); removeErr != nil {
+			slog.Warn("Failed to remove incomplete destination file", "error", removeErr, "path", cleanDst)
+		}
 		return err
 	}
 
@@ -383,7 +389,7 @@ func (o *Organizer) GetDirectoryStructure() (map[string]any, error) {
 
 func (o *Organizer) countFilesInDirectory(dirPath string) int {
 	count := 0
-	filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -391,7 +397,9 @@ func (o *Organizer) countFilesInDirectory(dirPath string) int {
 			count++
 		}
 		return nil
-	})
+	}); err != nil {
+		slog.Warn("Failed to walk directory for file count", "error", err, "path", dirPath)
+	}
 	return count
 }
 
