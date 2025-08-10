@@ -70,6 +70,32 @@ docker run -d \
 | `./media` | `/media` | Persistent storage for organized files |
 | `./temp` | `/tmp` | Temporary storage for upload processing |
 
+### Custom User and Group IDs
+
+To avoid permission issues, you can run the container with custom user and group IDs using the `--user` flag:
+
+```bash
+docker run -d \
+  --name sortify \
+  --user 1234:1234 \
+  -p 8080:8080 \
+  -v ./media:/media:rw \
+  -v ./temp:/tmp:rw \
+  steven-harris/sortify:latest
+```
+
+**Find your user ID:**
+```bash
+id -u  # User ID
+id -g  # Group ID
+```
+
+**Important:** Make sure the host directories have the correct ownership:
+```bash
+sudo chown -R 1234:1234 ./media ./temp
+# Or for unRAID: sudo chown -R 99:100 ./media ./temp
+```
+
 ## 🔧 Development
 
 ### Prerequisites

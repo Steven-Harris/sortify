@@ -28,6 +28,15 @@ temp/
 coverage.out
 test/
 tests/
+*.test.ts
+*.spec.ts
+*.test.js
+*.spec.js
+frontend/src/test/
+frontend/coverage/
+vitest.config.ts
+**/*.test.*
+**/*.spec.*
 
 # Environment files
 .env
