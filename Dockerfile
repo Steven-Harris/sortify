@@ -9,7 +9,9 @@ WORKDIR /app
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 
 # Install pnpm and dependencies with optimizations
-RUN npm install -g pnpm@latest && \
+RUN --mount=type=cache,target=/root/.npm \
+    --mount=type=cache,target=/root/.local/share/pnpm/store \
+    npm install -g pnpm@latest && \
     # Reduce Sharp installation time by using pre-built binaries
     pnpm config set sharp-libvips-binary-host "https://github.com/lovell/sharp-libvips/releases/download" && \
     # Use faster network settings
@@ -21,7 +23,8 @@ RUN npm install -g pnpm@latest && \
 COPY frontend/ .
 
 # Build the frontend
-RUN pnpm build
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm build
 
 # Stage 2: Build the Go backend and healthcheck utility
 FROM golang:alpine AS go-builder
@@ -36,21 +39,26 @@ RUN apk add --no-cache git ca-certificates tzdata && \
 
 # Copy go mod files and download dependencies (cached layer)
 COPY backend/go.mod backend/go.sum ./
-RUN go mod download && go mod verify
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download && go mod verify
 
 # Copy only the source code needed for building (exclude tests and other files)
 COPY backend/cmd/ ./cmd/
 COPY backend/internal/ ./internal/
 
 # Build the main binary with optimizations
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build \
     -ldflags='-w -s -extldflags "-static"' \
     -trimpath \
     -buildvcs=false \
     -o sortify ./cmd/server
 
 # Build the healthcheck binary
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build \
     -ldflags='-w -s -extldflags "-static"' \
     -trimpath \
     -buildvcs=false \
