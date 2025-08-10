@@ -15,12 +15,17 @@ type Config struct {
 }
 
 func Load() *Config {
+	// Default CORS: none (same-origin only) for security
+	// In production Docker, frontend is served from same origin, so no CORS needed
+	// For development, set CORS_ORIGINS=http://localhost:5173 explicitly
+	defaultCORS := ""
+	
 	config := &Config{
 		Port:        getEnv("PORT", "8080"),
 		MediaPath:   getEnv("MEDIA_PATH", "./media"),
 		TempPath:    getEnv("TEMP_PATH", "/tmp"),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
-		CORSOrigins: getEnv("CORS_ORIGINS", "*"),
+		CORSOrigins: getEnv("CORS_ORIGINS", defaultCORS),
 	}
 
 	var logLevel slog.Level

@@ -1,6 +1,7 @@
 import { LitElement, html, unsafeCSS } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { apiService, type UploadResponse, type ProcessResponse } from '../services/api.js';
+import { generateUUID } from '../utils/uuid.js';
 import uploadStyles from '../styles/upload.css?inline';
 
 export interface UploadFile {
@@ -287,7 +288,7 @@ export class SortifyUpload extends LitElement {
     const newItems: UploadFile[] = files
       .filter(file => this.isValidFile(file))
       .map(file => ({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         file,
         progress: 0,
         status: 'pending'
