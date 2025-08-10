@@ -9,13 +9,11 @@ WORKDIR /app
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 
 # Install pnpm and dependencies with optimizations
-RUN npm install -g pnpm@latest && \
+RUN npm install -g pnpm && \
     # Reduce Sharp installation time by using pre-built binaries
     pnpm config set sharp-libvips-binary-host "https://github.com/lovell/sharp-libvips/releases/download" && \
-    # Use faster network settings
-    pnpm config set network-timeout 300000 && \
     # Install with optimizations
-    pnpm install --frozen-lockfile --prefer-offline --no-optional
+    pnpm install --frozen-lockfile
 
 # Copy frontend source code
 COPY frontend/ .
