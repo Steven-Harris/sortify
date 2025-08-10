@@ -20,7 +20,7 @@ Sortify automatically organizes your photos and media files by date with a clean
 - 🚨 **Duplicate Detection** - Prevents duplicate files with checksum verification
 - 🛡️ **Security First** - Minimal scratch-based Docker image, non-root execution
 - ⚙️ **Configurable** - Environment-based configuration for all settings
-- 🌐 **Multi-platform** - Supports AMD64 and ARM64 architectures
+- 🌐 **Platform Support** - Optimized for AMD64 architecture
 
 ## 🚀 Quick Start
 
@@ -193,6 +193,13 @@ media/
 - **CORS protection** - Configurable origin restrictions
 
 ## 🐳 Production Deployment
+
+### System Requirements
+
+- **Architecture**: AMD64 (x86_64) required
+- **Memory**: Minimum 512MB RAM recommended
+- **Storage**: Adequate space for media files
+- **Docker**: Version 20.10+ or compatible container runtime
 
 ### Docker Compose Production
 
