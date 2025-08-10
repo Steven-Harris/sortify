@@ -65,9 +65,12 @@ func (h *UploadHandlers) StartUploadHandler(w http.ResponseWriter, r *http.Reque
 		"fileSize", session.FileSize,
 	)
 
+	totalChunks := int((req.FileSize + req.ChunkSize - 1) / req.ChunkSize)
+
 	result := map[string]any{
-		"uploadId":  session.ID,
-		"sessionId": session.ID, // For backward compatibility
+		"uploadId":    session.ID,
+		"sessionId":   session.ID, // For backward compatibility
+		"totalChunks": totalChunks,
 	}
 
 	Success(w, result)

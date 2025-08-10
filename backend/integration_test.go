@@ -8,6 +8,7 @@ import (
 	"github.com/Steven-harris/sortify/backend/internal/media"
 	"github.com/Steven-harris/sortify/backend/internal/models"
 	"github.com/Steven-harris/sortify/backend/internal/upload"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIntegrationUploadAndOrganize(t *testing.T) {
@@ -17,14 +18,10 @@ func TestIntegrationUploadAndOrganize(t *testing.T) {
 	mediaDir := filepath.Join(tempDir, "media")
 
 	err := os.MkdirAll(uploadTempDir, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create upload temp dir: %v", err)
-	}
+	assert.NoError(t, err, "Failed to create upload temp dir")
 
 	err = os.MkdirAll(mediaDir, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create media dir: %v", err)
-	}
+	assert.NoError(t, err, "Failed to create media dir")
 
 	// Initialize components
 	uploadManager := upload.NewManager(uploadTempDir, 5)
@@ -41,9 +38,7 @@ func TestIntegrationUploadAndOrganize(t *testing.T) {
 		}
 
 		session, err := uploadManager.CreateSession(req)
-		if err != nil {
-			t.Fatalf("Failed to create session: %v", err)
-		}
+		assert.NoError(t, err, "Failed to create session")
 
 		// Upload chunks
 		chunk1 := []byte("0123456789") // 10 bytes

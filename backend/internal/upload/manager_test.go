@@ -7,23 +7,16 @@ import (
 	"testing"
 
 	"github.com/Steven-harris/sortify/backend/internal/models"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewManager(t *testing.T) {
 	tempDir := t.TempDir()
 	manager := NewManager(tempDir, 5)
 
-	if manager.tempDir != tempDir {
-		t.Errorf("Expected tempDir %s, got %s", tempDir, manager.tempDir)
-	}
-
-	if manager.maxSessions != 5 {
-		t.Errorf("Expected maxSessions 5, got %d", manager.maxSessions)
-	}
-
-	if len(manager.sessions) != 0 {
-		t.Errorf("Expected empty sessions map, got %d sessions", len(manager.sessions))
-	}
+	assert.Equal(t, tempDir, manager.tempDir, "Expected tempDir to match")
+	assert.Equal(t, 5, manager.maxSessions, "Expected maxSessions to be 5")
+	assert.Empty(t, manager.sessions, "Expected empty sessions map")
 }
 
 func TestCreateSession(t *testing.T) {
@@ -39,50 +32,26 @@ func TestCreateSession(t *testing.T) {
 	}
 
 	session, err := manager.CreateSession(req)
-	if err != nil {
-		t.Fatalf("CreateSession failed: %v", err)
-	}
+	assert.NoError(t, err, "CreateSession should not fail")
 
 	// Verify session properties
-	if session.FileName != req.FileName {
-		t.Errorf("Expected filename %s, got %s", req.FileName, session.FileName)
-	}
-
-	if session.FileSize != req.FileSize {
-		t.Errorf("Expected file size %d, got %d", req.FileSize, session.FileSize)
-	}
-
-	if session.ChunkSize != req.ChunkSize {
-		t.Errorf("Expected chunk size %d, got %d", req.ChunkSize, session.ChunkSize)
-	}
+	assert.Equal(t, req.FileName, session.FileName, "Expected filename to match")
+	assert.Equal(t, req.FileSize, session.FileSize, "Expected file size to match")
+	assert.Equal(t, req.ChunkSize, session.ChunkSize, "Expected chunk size to match")
 
 	expectedChunks := int((req.FileSize + req.ChunkSize - 1) / req.ChunkSize)
-	if session.TotalChunks != expectedChunks {
-		t.Errorf("Expected total chunks %d, got %d", expectedChunks, session.TotalChunks)
-	}
-
-	if session.UploadedSize != 0 {
-		t.Errorf("Expected uploaded size 0, got %d", session.UploadedSize)
-	}
-
-	if session.Status != models.StatusInitialized {
-		t.Errorf("Expected status %s, got %s", models.StatusInitialized, session.Status)
-	}
+	assert.Equal(t, expectedChunks, session.TotalChunks, "Expected total chunks to be calculated correctly")
+	assert.Equal(t, int64(0), session.UploadedSize, "Expected uploaded size to be 0")
+	assert.Equal(t, models.StatusInitialized, session.Status, "Expected status to be initialized")
 
 	// Verify temporary file exists
-	if _, err := os.Stat(session.TempPath); os.IsNotExist(err) {
-		t.Errorf("Temporary file should exist at %s", session.TempPath)
-	}
+	_, err = os.Stat(session.TempPath)
+	assert.NoError(t, err, "Temporary file should exist")
 
 	// Verify file size is pre-allocated
 	fileInfo, err := os.Stat(session.TempPath)
-	if err != nil {
-		t.Fatalf("Failed to stat temp file: %v", err)
-	}
-
-	if fileInfo.Size() != req.FileSize {
-		t.Errorf("Expected temp file size %d, got %d", req.FileSize, fileInfo.Size())
-	}
+	assert.NoError(t, err, "Should be able to stat temp file")
+	assert.Equal(t, req.FileSize, fileInfo.Size(), "Expected temp file to be pre-allocated")
 }
 
 func TestCreateSessionMaxLimit(t *testing.T) {
