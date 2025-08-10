@@ -18,7 +18,7 @@ func Load() *Config {
 	config := &Config{
 		Port:        getEnv("PORT", "8080"),
 		MediaPath:   getEnv("MEDIA_PATH", "./media"),
-		TempPath:    getEnv("TEMP_PATH", "/temp"),
+		TempPath:    getEnv("TEMP_PATH", "/tmp"),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
 		CORSOrigins: getEnv("CORS_ORIGINS", "*"),
 	}
