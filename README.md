@@ -5,9 +5,11 @@
 Sortify automatically organizes your photos and media files by date with a clean, modern web interface. Simply drag and drop your files, and Sortify will intelligently extract dates from filenames and EXIF data to organize them into a structured folder hierarchy.
 
 ![License](https://img.shields.io/github/license/Steven-harris/sortify)
-![Docker Pulls](https://img.shields.io/docker/pulls/steven-harris/sortify)
+![Docker Pulls](https://img.shields.io/docker/pulls/steharris/sortify)
 ![GitHub release](https://img.shields.io/github/v/release/Steven-harris/sortify)
 ![Build Status](https://img.shields.io/github/actions/workflow/status/Steven-harris/sortify/test.yml)
+
+<a href="https://www.buymeacoffee.com/githelm" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 150px !important;" ></a>
 
 ## ✨ Features
 
