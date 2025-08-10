@@ -36,7 +36,7 @@ func (m *Manager) OrganizeFile(tempPath string, originalFilename string) (*media
 
 	targetDir := m.getTargetDirectory(mediaInfo.DateTaken)
 
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create target directory: %w", err)
 	}
 
@@ -50,7 +50,9 @@ func (m *Manager) OrganizeFile(tempPath string, originalFilename string) (*media
 			"original", mediaInfo.FileName,
 			"existing", finalPath,
 		)
-		os.Remove(tempPath)
+		if err := os.Remove(tempPath); err != nil {
+			slog.Warn("Failed to remove temp file", "error", err, "path", tempPath)
+		}
 		return mediaInfo, nil
 	}
 
@@ -136,21 +138,33 @@ func (m *Manager) moveFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
-	defer srcFile.Close()
+	defer func() {
+		if err := srcFile.Close(); err != nil {
+			slog.Warn("Failed to close source file", "error", err)
+		}
+	}()
 
 	dstFile, err := os.Create(dst)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer dstFile.Close()
+	defer func() {
+		if err := dstFile.Close(); err != nil {
+			slog.Warn("Failed to close destination file", "error", err)
+		}
+	}()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		os.Remove(dst) // Clean up partial file
+		if removeErr := os.Remove(dst); removeErr != nil {
+			slog.Warn("Failed to clean up partial file", "error", removeErr, "path", dst)
+		}
 		return fmt.Errorf("failed to copy file contents: %w", err)
 	}
 
 	if err := dstFile.Sync(); err != nil {
-		os.Remove(dst)
+		if removeErr := os.Remove(dst); removeErr != nil {
+			slog.Warn("Failed to clean up destination file after sync error", "error", removeErr, "path", dst)
+		}
 		return fmt.Errorf("failed to sync file: %w", err)
 	}
 
@@ -166,7 +180,11 @@ func (m *Manager) calculateChecksum(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			slog.Warn("Failed to close file for checksum", "error", err, "path", filePath)
+		}
+	}()
 
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {

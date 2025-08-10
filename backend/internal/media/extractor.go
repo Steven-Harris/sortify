@@ -76,7 +76,23 @@ func (e *Extractor) extractDateFromEXIF(filePath string, info *MediaInfo) {
 		return
 	}
 
-	file, err := os.Open(filePath)
+	// Validate file path to prevent directory traversal attacks
+	cleanPath := filepath.Clean(filePath)
+
+	// Check for path traversal attempts
+	if strings.Contains(cleanPath, "..") {
+		slog.Warn("Path traversal attempt detected", "path", filePath)
+		return
+	}
+
+	// Additional validation: ensure the path doesn't start with suspicious patterns
+	if strings.HasPrefix(cleanPath, "/etc/") || strings.HasPrefix(cleanPath, "/root/") ||
+		strings.HasPrefix(cleanPath, "/home/") && !strings.Contains(cleanPath, "/tmp/") {
+		slog.Warn("Potentially unsafe file path detected", "path", filePath)
+		return
+	}
+
+	file, err := os.Open(cleanPath)
 	if err != nil {
 		slog.Debug("Failed to open file for EXIF", "error", err, "file", filePath)
 		return

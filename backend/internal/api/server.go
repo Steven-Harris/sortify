@@ -72,7 +72,7 @@ func (s *Server) ensureDirectories() error {
 	}
 
 	for _, dir := range directories {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0750); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 		slog.Info("Directory ensured", "path", dir)

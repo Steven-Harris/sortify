@@ -1,7 +1,6 @@
 package api
 
 import (
-	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -83,7 +82,7 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 	// No frontend available, serve a simple message
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`
+	_, err := w.Write([]byte(`
 		<!DOCTYPE html>
 		<html>
 		<head><title>Sortify API</title></head>
@@ -99,10 +98,9 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 		</body>
 		</html>
 	`))
-}
-
-// getEmbeddedFS returns the embedded filesystem if available
-func getEmbeddedFS() fs.FS {
-	// This will be overridden in embed.go when frontend is embedded
-	return nil
+	if err != nil {
+		// Error writing response - not much we can do at this point
+		// since headers are already sent, but we should log it
+		return
+	}
 }

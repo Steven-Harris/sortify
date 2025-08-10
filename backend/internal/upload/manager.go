@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -20,7 +21,7 @@ type Manager struct {
 }
 
 func NewManager(tempDir string, maxSessions int) *Manager {
-	os.MkdirAll(tempDir, 0755)
+	os.MkdirAll(tempDir, 0600)
 
 	return &Manager{
 		sessions:    make(map[string]*models.UploadSession),
@@ -64,11 +65,17 @@ func (m *Manager) CreateSession(req *models.StartUploadRequest) (*models.UploadS
 	}
 
 	if err := file.Truncate(req.FileSize); err != nil {
-		file.Close()
-		os.Remove(tempPath)
+		if closeErr := file.Close(); closeErr != nil {
+			slog.Warn("Failed to close file after truncate error", "error", closeErr)
+		}
+		if removeErr := os.Remove(tempPath); removeErr != nil {
+			slog.Warn("Failed to remove temp file after truncate error", "error", removeErr, "path", tempPath)
+		}
 		return nil, fmt.Errorf("failed to allocate file space: %w", err)
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+		slog.Warn("Failed to close file after truncate", "error", err)
+	}
 
 	m.sessions[sessionID] = session
 	return session, nil
@@ -107,7 +114,11 @@ func (m *Manager) UploadChunk(sessionID string, chunkNumber int, chunkData []byt
 	if err != nil {
 		return fmt.Errorf("failed to open temporary file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			slog.Warn("Failed to close temp file after chunk write", "error", err)
+		}
+	}()
 
 	if _, err := file.Seek(offset, 0); err != nil {
 		return fmt.Errorf("failed to seek to chunk position: %w", err)
@@ -233,7 +244,9 @@ func (m *Manager) CancelUpload(sessionID string) error {
 		return fmt.Errorf("session not found")
 	}
 
-	os.Remove(session.TempPath)
+	if err := os.Remove(session.TempPath); err != nil {
+		slog.Warn("Failed to remove temp file during cancel", "error", err, "path", session.TempPath)
+	}
 
 	session.Status = models.StatusCancelled
 	session.UpdatedAt = time.Now()
@@ -268,7 +281,9 @@ func (m *Manager) CleanupSession(sessionID string) error {
 		return fmt.Errorf("session not found")
 	}
 
-	os.Remove(session.TempPath)
+	if err := os.Remove(session.TempPath); err != nil {
+		slog.Warn("Failed to remove temp file during cleanup", "error", err, "path", session.TempPath)
+	}
 
 	delete(m.sessions, sessionID)
 
@@ -280,7 +295,11 @@ func (m *Manager) calculateFileChecksum(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			slog.Warn("Failed to close file during checksum calculation", "error", err, "path", filePath)
+		}
+	}()
 
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
