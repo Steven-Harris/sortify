@@ -7,9 +7,13 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    environment:
+      - MEDIA_PATH=/media
+      - TEMP_PATH=/tmp
+      # Uncomment and configure these as needed:
+      # - LOG_LEVEL=info
+      # - CORS_ORIGINS=*
+      # - PORT=8080
     volumes:
       - ./media:/media:rw
-    environment:
-      - PORT=8080
-      - MEDIA_PATH=/media
-      - CORS_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
+      - ./media/temp:/tmp:rw

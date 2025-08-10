@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Port        string
 	MediaPath   string
+	TempPath    string
 	LogLevel    string
 	CORSOrigins string
 }
@@ -17,6 +18,7 @@ func Load() *Config {
 	config := &Config{
 		Port:        getEnv("PORT", "8080"),
 		MediaPath:   getEnv("MEDIA_PATH", "./media"),
+		TempPath:    getEnv("TEMP_PATH", "/temp"),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
 		CORSOrigins: getEnv("CORS_ORIGINS", "*"),
 	}
@@ -43,6 +45,7 @@ func Load() *Config {
 	slog.Info("Configuration loaded",
 		"port", config.Port,
 		"media_path", config.MediaPath,
+		"temp_path", config.TempPath,
 		"log_level", config.LogLevel,
 	)
 

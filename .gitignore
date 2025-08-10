@@ -12,7 +12,8 @@ dist
 dist-ssr
 dev-dist
 *.local
-temp/
+temp/*
+media/*
 tmp/*
 
 # Editor directories and files

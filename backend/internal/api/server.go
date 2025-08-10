@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -22,12 +21,9 @@ type Server struct {
 }
 
 func NewServer(cfg *config.Config) *Server {
-	// Create temporary directory for uploads
-	tempDir := filepath.Join(cfg.MediaPath, "temp")
-
 	return &Server{
 		config:        cfg,
-		uploadHandler: NewUploadHandlers(tempDir, cfg.MediaPath),
+		uploadHandler: NewUploadHandlers(cfg.TempPath, cfg.MediaPath),
 		mediaHandler:  NewMediaHandlers(cfg.MediaPath),
 	}
 }
@@ -72,7 +68,7 @@ func (s *Server) Start() error {
 func (s *Server) ensureDirectories() error {
 	directories := []string{
 		s.config.MediaPath,
-		filepath.Join(s.config.MediaPath, "temp"), // Temporary upload directory
+		s.config.TempPath,
 	}
 
 	for _, dir := range directories {

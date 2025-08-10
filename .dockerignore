@@ -21,6 +21,7 @@ backend/vendor/
 dist/
 build/
 tmp/
+temp/
 
 # Test files and coverage
 *_test.go
