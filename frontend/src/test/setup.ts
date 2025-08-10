@@ -140,7 +140,7 @@ if (typeof global.URL === 'undefined') {
     hash: string
     searchParams: URLSearchParams
 
-    constructor(url: string, base?: string | URL) {
+    constructor(url: string, _base?: string | URL) {
       this.href = url
       this.origin = 'http://localhost'
       this.protocol = 'http:'
@@ -168,7 +168,7 @@ if (typeof global.URLSearchParams === 'undefined') {
   global.URLSearchParams = class MockURLSearchParams {
     private params = new Map<string, string>()
 
-    constructor(init?: string | URLSearchParams | Record<string, string>) {
+    constructor(_init?: string | URLSearchParams | Record<string, string>) {
       // Basic implementation
     }
 
@@ -211,7 +211,7 @@ if (typeof global.AbortController === 'undefined') {
       } as any
     }
 
-    abort(reason?: any): void {
+    abort(_reason?: any): void {
       (this.signal as any).aborted = true
       if (this.signal.onabort) {
         this.signal.onabort(new Event('abort'))
