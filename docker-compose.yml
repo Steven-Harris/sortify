@@ -15,8 +15,11 @@ services:
       - TEMP_PATH=/tmp
       # Uncomment and configure these as needed:
       # - LOG_LEVEL=info
-      # - CORS_ORIGINS=*
       # - PORT=8080
+      # For development with separate frontend server:
+      # - CORS_ORIGINS=http://localhost:5173,http://localhost:5174,http://localhost:5175
+      # For production reverse proxy from different domain:
+      # - CORS_ORIGINS=https://yourdomain.com
     volumes:
       - ./media:/media:rw
       - ./media/temp:/tmp:rw
