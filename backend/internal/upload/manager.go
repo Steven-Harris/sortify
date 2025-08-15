@@ -3,7 +3,6 @@ package upload
 import (
 	"crypto/sha256"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -12,13 +11,15 @@ import (
 
 	"github.com/Steven-Harris/sortify/backend/internal/models"
 	"github.com/Steven-Harris/sortify/backend/internal/security"
+	"github.com/Steven-Harris/sortify/backend/internal/storage"
 )
 
 type Manager struct {
-	sessions    map[string]*models.UploadSession
-	tempDir     string
-	maxSessions int
-	mutex       sync.RWMutex
+	sessions       map[string]*models.UploadSession
+	tempDir        string
+	maxSessions    int
+	mutex          sync.RWMutex
+	storageManager *storage.Manager
 }
 
 func NewManager(tempDir string, maxSessions int) *Manager {
@@ -27,10 +28,14 @@ func NewManager(tempDir string, maxSessions int) *Manager {
 		slog.Warn("Failed to create temp directory during manager initialization", "error", err, "tempDir", tempDir)
 	}
 
+	// You may want to pass mediaPath here, adjust as needed
+	storageMgr := storage.NewManager("")
+
 	return &Manager{
-		sessions:    make(map[string]*models.UploadSession),
-		tempDir:     tempDir,
-		maxSessions: maxSessions,
+		sessions:       make(map[string]*models.UploadSession),
+		tempDir:        tempDir,
+		maxSessions:    maxSessions,
+		storageManager: storageMgr,
 	}
 }
 
@@ -103,7 +108,7 @@ func (m *Manager) GetSession(sessionID string) (*models.UploadSession, error) {
 	return session, nil
 }
 
-func (m *Manager) UploadChunk(sessionID string, chunkNumber int, chunkData []byte, expectedChecksum string) error {
+func (m *Manager) UploadChunk(sessionID string, chunkNumber int, chunkData []byte, expectedChecksum string, algorithm string) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -112,8 +117,18 @@ func (m *Manager) UploadChunk(sessionID string, chunkNumber int, chunkData []byt
 		return fmt.Errorf("session not found")
 	}
 
-	hash := sha256.Sum256(chunkData)
-	actualChecksum := fmt.Sprintf("%x", hash)
+	var actualChecksum string
+	if algorithm == "simple" {
+		// Simple fallback hash
+		var hash int32 = 0
+		for i := 0; i < len(chunkData); i++ {
+			hash = ((hash << 5) - hash) + int32(chunkData[i])
+		}
+		actualChecksum = fmt.Sprintf("%x", hash)
+	} else {
+		hash := sha256.Sum256(chunkData)
+		actualChecksum = fmt.Sprintf("%x", hash)
+	}
 	if expectedChecksum != "" && actualChecksum != expectedChecksum {
 		return fmt.Errorf("chunk checksum mismatch")
 	}
@@ -145,7 +160,7 @@ func (m *Manager) UploadChunk(sessionID string, chunkNumber int, chunkData []byt
 	return nil
 }
 
-func (m *Manager) CompleteUpload(sessionID string, expectedChecksum string) error {
+func (m *Manager) CompleteUpload(sessionID string, expectedChecksum string, algorithm string) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -159,7 +174,7 @@ func (m *Manager) CompleteUpload(sessionID string, expectedChecksum string) erro
 	}
 
 	if expectedChecksum != "" || session.Checksum != "" {
-		actualChecksum, err := m.calculateFileChecksum(session.TempPath)
+		actualChecksum, err := m.calculateFileChecksum(session.TempPath, algorithm)
 		if err != nil {
 			return fmt.Errorf("failed to calculate file checksum: %w", err)
 		}
@@ -300,29 +315,8 @@ func (m *Manager) CleanupSession(sessionID string) error {
 	return nil
 }
 
-func (m *Manager) calculateFileChecksum(filePath string) (string, error) {
-	// Validate file path using security helper
-	cleanPath, err := security.ValidateFilePath(filePath)
-	if err != nil {
-		return "", fmt.Errorf("path validation failed: %w", err)
-	}
-
-	file, err := os.Open(cleanPath) // #nosec G304 - path validated by security.ValidateFilePath
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			slog.Warn("Failed to close file during checksum calculation", "error", err, "path", filePath)
-		}
-	}()
-
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+func (m *Manager) calculateFileChecksum(filePath string, algorithm string) (string, error) {
+	return m.storageManager.CalculateChecksum(filePath, algorithm)
 }
 
 func generateSessionID() string {

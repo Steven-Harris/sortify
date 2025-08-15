@@ -92,12 +92,12 @@ func (m *Manager) getFinalPath(targetDir, filename, tempPath string) (string, bo
 		return basePath, false, nil
 	}
 
-	tempChecksum, err := m.calculateChecksum(tempPath)
+	tempChecksum, err := m.CalculateChecksum(tempPath, "sha256")
 	if err != nil {
 		return "", false, fmt.Errorf("failed to calculate temp file checksum: %w", err)
 	}
 
-	existingChecksum, err := m.calculateChecksum(basePath)
+	existingChecksum, err := m.CalculateChecksum(basePath, "sha256")
 	if err != nil {
 		return "", false, fmt.Errorf("failed to calculate existing file checksum: %w", err)
 	}
@@ -117,7 +117,7 @@ func (m *Manager) getFinalPath(targetDir, filename, tempPath string) (string, bo
 			return newPath, false, nil
 		}
 
-		variantChecksum, err := m.calculateChecksum(newPath)
+		variantChecksum, err := m.CalculateChecksum(newPath, "sha256")
 		if err != nil {
 			continue
 		}
@@ -182,7 +182,9 @@ func (m *Manager) moveFile(src, dst string) error {
 	return nil
 }
 
-func (m *Manager) calculateChecksum(filePath string) (string, error) {
+// CalculateChecksum calculates a checksum for the file at filePath using the specified algorithm.
+// Supported algorithms: "sha256" (default), "simple" (fallback)
+func (m *Manager) CalculateChecksum(filePath string, algorithm string) (string, error) {
 	// Validate file path
 	cleanPath, err := security.ValidateFilePath(filePath)
 	if err != nil {
@@ -199,12 +201,37 @@ func (m *Manager) calculateChecksum(filePath string) (string, error) {
 		}
 	}()
 
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
+	switch algorithm {
+	case "simple":
+		// Simple fallback hash (not cryptographically secure)
+		var hash int32 = 0
+		buf := make([]byte, 4096)
+		for {
+			n, err := file.Read(buf)
+			if n > 0 {
+				for i := 0; i < n; i++ {
+					hash = ((hash << 5) - hash) + int32(buf[i])
+				}
+			}
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return "", err
+			}
+		}
+		return fmt.Sprintf("%x", hash), nil
+	default:
+		// Default: SHA256
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			return "", err
+		}
+		hash := sha256.New()
+		if _, err := io.Copy(hash, file); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%x", hash.Sum(nil)), nil
 	}
-
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func (m *Manager) GetFileInfo(relativePath string) (*media.MediaInfo, error) {

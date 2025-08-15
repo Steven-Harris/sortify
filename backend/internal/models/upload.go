@@ -12,9 +12,9 @@ type UploadSession struct {
 	ChunkSize    int64             `json:"chunkSize"`
 	TotalChunks  int               `json:"totalChunks"`
 	UploadedSize int64             `json:"uploadedSize"`
-	Checksum     string            `json:"checksum"` // Expected SHA256 checksum
-	TempPath     string            `json:"tempPath"` // Temporary file path
-	Metadata     map[string]string `json:"metadata"` // Additional metadata
+	Checksum     string            `json:"checksum"`
+	TempPath     string            `json:"tempPath"`
+	Metadata     map[string]string `json:"metadata"`
 	CreatedAt    time.Time         `json:"createdAt"`
 	UpdatedAt    time.Time         `json:"updatedAt"`
 	Status       UploadStatus      `json:"status"`
@@ -37,7 +37,7 @@ type ChunkInfo struct {
 	SessionID   string `json:"sessionId"`
 	ChunkNumber int    `json:"chunkNumber"`
 	ChunkSize   int64  `json:"chunkSize"`
-	Checksum    string `json:"checksum"` // SHA256 of this specific chunk
+	Checksum    string `json:"checksum"`
 }
 
 // UploadProgress represents the current progress of an upload
@@ -58,6 +58,7 @@ type StartUploadRequest struct {
 	FileSize  int64             `json:"fileSize"`
 	ChunkSize int64             `json:"chunkSize"`
 	Checksum  string            `json:"checksum"`
+	Algorithm string            `json:"algorithm"`
 	Metadata  map[string]string `json:"metadata"`
 }
 
@@ -67,10 +68,12 @@ type UploadChunkRequest struct {
 	ChunkNumber int    `json:"chunkNumber"`
 	ChunkSize   int64  `json:"chunkSize"`
 	Checksum    string `json:"checksum"`
+	Algorithm   string `json:"algorithm"`
 }
 
 // CompleteUploadRequest represents the request to complete an upload
 type CompleteUploadRequest struct {
 	SessionID string `json:"sessionId"`
 	Checksum  string `json:"checksum"`
+	Algorithm string `json:"algorithm"`
 }

@@ -52,6 +52,11 @@ func (h *UploadHandlers) StartUploadHandler(w http.ResponseWriter, r *http.Reque
 		req.ChunkSize = 1024 * 1024
 	}
 
+	// Pass algorithm to manager if needed
+	if req.Algorithm == "" {
+		req.Algorithm = "sha256"
+	}
+
 	session, err := h.manager.CreateSession(&req)
 	if err != nil {
 		slog.Error("Failed to create upload session", "error", err)
@@ -63,6 +68,7 @@ func (h *UploadHandlers) StartUploadHandler(w http.ResponseWriter, r *http.Reque
 		"sessionId", session.ID,
 		"filename", session.FileName,
 		"fileSize", session.FileSize,
+		"algorithm", req.Algorithm,
 	)
 
 	totalChunks := int((req.FileSize + req.ChunkSize - 1) / req.ChunkSize)
@@ -90,17 +96,19 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 
 	sessionID := r.FormValue("sessionId")
 	if sessionID == "" {
-		// Try fallback to snake_case for backward compatibility
 		sessionID = r.FormValue("sessionId")
 	}
 
 	chunkNumberStr := r.FormValue("chunkNumber")
 	if chunkNumberStr == "" {
-		// Try fallback to snake_case for backward compatibility
 		chunkNumberStr = r.FormValue("chunk_number")
 	}
 
 	expectedChecksum := r.FormValue("checksum")
+	algorithm := r.FormValue("algorithm")
+	if algorithm == "" {
+		algorithm = "sha256"
+	}
 
 	if sessionID == "" {
 		BadRequest(w, "Session ID is required")
@@ -124,11 +132,11 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 	chunkData, err := io.ReadAll(file)
 	if err != nil {
 		slog.Error("Failed to read chunk data", "error", err)
-		InternalError(w, "Failed to read chunk data")
+		BadRequest(w, "Failed to read chunk data")
 		return
 	}
 
-	if err := h.manager.UploadChunk(sessionID, chunkNumber, chunkData, expectedChecksum); err != nil {
+	if err := h.manager.UploadChunk(sessionID, chunkNumber, chunkData, expectedChecksum, algorithm); err != nil {
 		slog.Error("Failed to upload chunk",
 			"error", err,
 			"sessionId", sessionID,
@@ -173,7 +181,11 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if err := h.manager.CompleteUpload(req.SessionID, req.Checksum); err != nil {
+	if req.Algorithm == "" {
+		req.Algorithm = "sha256"
+	}
+
+	if err := h.manager.CompleteUpload(req.SessionID, req.Checksum, req.Algorithm); err != nil {
 		slog.Error("Failed to complete upload",
 			"error", err,
 			"sessionId", req.SessionID,
@@ -246,7 +258,6 @@ func (h *UploadHandlers) GetProgressHandler(w http.ResponseWriter, r *http.Reque
 
 	sessionID := r.URL.Query().Get("sessionId")
 	if sessionID == "" {
-		// Try fallback to snake_case for backward compatibility
 		sessionID = r.URL.Query().Get("sessionId")
 	}
 	if sessionID == "" {
@@ -275,7 +286,6 @@ func (h *UploadHandlers) PauseUploadHandler(w http.ResponseWriter, r *http.Reque
 
 	sessionID := r.URL.Query().Get("sessionId")
 	if sessionID == "" {
-		// Try fallback to snake_case for backward compatibility
 		sessionID = r.URL.Query().Get("sessionId")
 	}
 	if sessionID == "" {
@@ -304,7 +314,6 @@ func (h *UploadHandlers) ResumeUploadHandler(w http.ResponseWriter, r *http.Requ
 
 	sessionID := r.URL.Query().Get("sessionId")
 	if sessionID == "" {
-		// Try fallback to snake_case for backward compatibility
 		sessionID = r.URL.Query().Get("sessionId")
 	}
 	if sessionID == "" {
@@ -333,7 +342,6 @@ func (h *UploadHandlers) CancelUploadHandler(w http.ResponseWriter, r *http.Requ
 
 	sessionID := r.URL.Query().Get("sessionId")
 	if sessionID == "" {
-		// Try fallback to snake_case for backward compatibility
 		sessionID = r.URL.Query().Get("sessionId")
 	}
 	if sessionID == "" {

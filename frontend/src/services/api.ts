@@ -135,12 +135,22 @@ export class ApiService {
   // Private helper methods
 
   private async calculateChecksum(file: File): Promise<string> {
-    // Use SHA256 to match backend implementation
     const buffer = await file.arrayBuffer();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex;
+    if (window.crypto && window.crypto.subtle) {
+      // Use SHA256 to match backend implementation
+      const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex;
+    }
+    // Fallback: simple hash (not cryptographically secure)
+    let hash = 0;
+    const arr = new Uint8Array(buffer);
+    for (let i = 0; i < arr.length; i++) {
+      hash = ((hash << 5) - hash) + arr[i];
+      hash |= 0; // Convert to 32bit integer
+    }
+    return hash.toString(16);
   }
 
   private async initializeUpload(filename: string, size: number, checksum: string): Promise<string> {

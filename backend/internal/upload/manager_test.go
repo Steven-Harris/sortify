@@ -138,7 +138,7 @@ func TestUploadChunk(t *testing.T) {
 	expectedChecksum := fmt.Sprintf("%x", sha256.Sum256(chunkData))
 
 	// Upload chunk
-	err = manager.UploadChunk(session.ID, 0, chunkData, expectedChecksum)
+	err = manager.UploadChunk(session.ID, 0, chunkData, expectedChecksum, "sha256")
 	if err != nil {
 		t.Fatalf("UploadChunk failed: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestUploadChunkChecksumValidation(t *testing.T) {
 	wrongChecksum := "wrong_checksum"
 
 	// Upload chunk with wrong checksum - should fail
-	err = manager.UploadChunk(session.ID, 0, chunkData, wrongChecksum)
+	err = manager.UploadChunk(session.ID, 0, chunkData, wrongChecksum, "sha256")
 	if err == nil {
 		t.Error("Expected error for wrong checksum, got nil")
 	}
@@ -227,18 +227,18 @@ func TestCompleteUpload(t *testing.T) {
 	chunk1 := []byte("0123456789") // 10 bytes
 	chunk2 := []byte("abcdefghij") // 10 bytes
 
-	err = manager.UploadChunk(session.ID, 0, chunk1, "")
+	err = manager.UploadChunk(session.ID, 0, chunk1, "", "sha256")
 	if err != nil {
 		t.Fatalf("UploadChunk 0 failed: %v", err)
 	}
 
-	err = manager.UploadChunk(session.ID, 1, chunk2, "")
+	err = manager.UploadChunk(session.ID, 1, chunk2, "", "sha256")
 	if err != nil {
 		t.Fatalf("UploadChunk 1 failed: %v", err)
 	}
 
 	// Complete upload
-	err = manager.CompleteUpload(session.ID, "")
+	err = manager.CompleteUpload(session.ID, "", "sha256")
 	if err != nil {
 		t.Fatalf("CompleteUpload failed: %v", err)
 	}
@@ -271,13 +271,13 @@ func TestCompleteUploadSizeMismatch(t *testing.T) {
 
 	// Upload only one chunk (incomplete)
 	chunk1 := []byte("0123456789") // 10 bytes
-	err = manager.UploadChunk(session.ID, 0, chunk1, "")
+	err = manager.UploadChunk(session.ID, 0, chunk1, "", "sha256")
 	if err != nil {
 		t.Fatalf("UploadChunk failed: %v", err)
 	}
 
 	// Try to complete upload - should fail due to size mismatch
-	err = manager.CompleteUpload(session.ID, "")
+	err = manager.CompleteUpload(session.ID, "", "sha256")
 	if err == nil {
 		t.Error("Expected error for incomplete upload, got nil")
 	}
@@ -318,7 +318,7 @@ func TestGetProgress(t *testing.T) {
 
 	// Upload one chunk
 	chunk := make([]byte, 25)
-	err = manager.UploadChunk(session.ID, 0, chunk, "")
+	err = manager.UploadChunk(session.ID, 0, chunk, "", "sha256")
 	if err != nil {
 		t.Fatalf("UploadChunk failed: %v", err)
 	}
@@ -446,12 +446,12 @@ func TestCleanupSession(t *testing.T) {
 
 	// Upload chunk and complete the upload first
 	chunk := []byte("0123456789") // 10 bytes to match FileSize
-	err = manager.UploadChunk(session.ID, 0, chunk, "")
+	err = manager.UploadChunk(session.ID, 0, chunk, "", "sha256")
 	if err != nil {
 		t.Fatalf("UploadChunk failed: %v", err)
 	}
 
-	err = manager.CompleteUpload(session.ID, "")
+	err = manager.CompleteUpload(session.ID, "", "sha256")
 	if err != nil {
 		t.Fatalf("CompleteUpload failed: %v", err)
 	}
@@ -497,12 +497,12 @@ func TestGetTempFilePath(t *testing.T) {
 
 	// Upload chunk and complete
 	chunk := []byte("0123456789")
-	err = manager.UploadChunk(session.ID, 0, chunk, "")
+	err = manager.UploadChunk(session.ID, 0, chunk, "", "sha256")
 	if err != nil {
 		t.Fatalf("UploadChunk failed: %v", err)
 	}
 
-	err = manager.CompleteUpload(session.ID, "")
+	err = manager.CompleteUpload(session.ID, "", "sha256")
 	if err != nil {
 		t.Fatalf("CompleteUpload failed: %v", err)
 	}

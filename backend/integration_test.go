@@ -44,18 +44,18 @@ func TestIntegrationUploadAndOrganize(t *testing.T) {
 		chunk1 := []byte("0123456789") // 10 bytes
 		chunk2 := []byte("abcdefghij") // 10 bytes
 
-		err = uploadManager.UploadChunk(session.ID, 0, chunk1, "")
+		err = uploadManager.UploadChunk(session.ID, 0, chunk1, "", "sha256")
 		if err != nil {
 			t.Fatalf("Failed to upload chunk 1: %v", err)
 		}
 
-		err = uploadManager.UploadChunk(session.ID, 1, chunk2, "")
+		err = uploadManager.UploadChunk(session.ID, 1, chunk2, "", "sha256")
 		if err != nil {
 			t.Fatalf("Failed to upload chunk 2: %v", err)
 		}
 
 		// Complete upload (without checksum validation for test)
-		err = uploadManager.CompleteUpload(session.ID, "")
+		err = uploadManager.CompleteUpload(session.ID, "", "sha256")
 		if err != nil {
 			t.Fatalf("Failed to complete upload: %v", err)
 		}
@@ -134,12 +134,12 @@ func TestIntegrationUploadAndOrganize(t *testing.T) {
 		}
 
 		chunk := []byte("duplicated")
-		err = uploadManager.UploadChunk(session1.ID, 0, chunk, "")
+		err = uploadManager.UploadChunk(session1.ID, 0, chunk, "", "sha256")
 		if err != nil {
 			t.Fatalf("Failed to upload chunk: %v", err)
 		}
 
-		err = uploadManager.CompleteUpload(session1.ID, "")
+		err = uploadManager.CompleteUpload(session1.ID, "", "sha256")
 		if err != nil {
 			t.Fatalf("Failed to complete upload 1: %v", err)
 		}
@@ -182,12 +182,12 @@ func TestIntegrationUploadAndOrganize(t *testing.T) {
 			t.Fatalf("Failed to create session 2: %v", err)
 		}
 
-		err = uploadManager.UploadChunk(session2.ID, 0, chunk, "")
+		err = uploadManager.UploadChunk(session2.ID, 0, chunk, "", "sha256")
 		if err != nil {
 			t.Fatalf("Failed to upload chunk 2: %v", err)
 		}
 
-		err = uploadManager.CompleteUpload(session2.ID, "")
+		err = uploadManager.CompleteUpload(session2.ID, "", "sha256")
 		if err != nil {
 			t.Fatalf("Failed to complete upload 2: %v", err)
 		}
