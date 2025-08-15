@@ -213,14 +213,12 @@ describe('ApiService', () => {
   describe('private methods', () => {
     it('should calculate file checksum', async () => {
       const mockFile = new File(['test'], 'test.txt', { type: 'text/plain' })
-      
       // Mock the crypto.subtle.digest to return a specific hash
       const mockHash = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])
       global.crypto.subtle.digest = vi.fn().mockResolvedValue(mockHash.buffer)
 
       const result = await (apiService as any).calculateChecksum(mockFile)
-
-      expect(result).toBe('0102030405060708')
+      expect(result).toEqual({ hash: '0102030405060708', algorithm: 'sha256' })
       expect(global.crypto.subtle.digest).toHaveBeenCalledWith('SHA-256', expect.any(ArrayBuffer))
     })
 
@@ -230,7 +228,8 @@ describe('ApiService', () => {
         json: async () => ({ uploadId: 'upload123' })
       })
 
-      const result = await (apiService as any).initializeUpload('test.txt', 100, 'checksum123')
+      const checksum = { hash: 'checksum123', algorithm: 'sha256' };
+      const result = await (apiService as any).initializeUpload('test.txt', 100, checksum)
 
       expect(result).toBe('upload123')
       expect(mockFetch).toHaveBeenCalledWith(
@@ -241,7 +240,8 @@ describe('ApiService', () => {
           body: JSON.stringify({
             fileName: 'test.txt',
             fileSize: 100,
-            checksum: 'checksum123'
+            checksum: 'checksum123',
+            algorithm: 'sha256'
           })
         })
       )
@@ -249,10 +249,10 @@ describe('ApiService', () => {
 
     it('should upload chunk', async () => {
       const chunk = new Blob(['test'])
-      
+      const checksum = { hash: 'checksum123', algorithm: 'sha256' };
       mockFetch.mockResolvedValueOnce({ ok: true })
 
-      await (apiService as any).uploadChunk('upload123', 0, chunk)
+      await (apiService as any).uploadChunk('upload123', 0, chunk, checksum)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8080/api/upload/chunk',
@@ -275,7 +275,8 @@ describe('ApiService', () => {
         json: async () => mockResponse
       })
 
-      const result = await (apiService as any).finalizeUpload('upload123', 'checksum123')
+      const checksum = { hash: 'checksum123', algorithm: 'sha256' };
+      const result = await (apiService as any).finalizeUpload('upload123', checksum)
 
       expect(result).toEqual(mockResponse)
       expect(mockFetch).toHaveBeenCalledWith(
@@ -285,7 +286,8 @@ describe('ApiService', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sessionId: 'upload123',
-            checksum: 'checksum123'
+            checksum: 'checksum123',
+            algorithm: 'sha256'
           })
         })
       )

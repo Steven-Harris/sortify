@@ -76,7 +76,7 @@ export class ApiService {
         const end = Math.min(start + chunkSize, file.size);
         const chunk = file.slice(start, end);
 
-        await this.uploadChunk(uploadId, chunkIndex, chunk);
+        await this.uploadChunk(uploadId, chunkIndex, chunk, checksum);
         
         uploadedBytes += chunk.size;
         onProgress?.(uploadedBytes / file.size);
@@ -134,14 +134,14 @@ export class ApiService {
 
   // Private helper methods
 
-  private async calculateChecksum(file: File): Promise<string> {
+  private async calculateChecksum(file: File): Promise<{hash: string, algorithm: string}> {
     const buffer = await file.arrayBuffer();
     if (window.crypto && window.crypto.subtle) {
       // Use SHA256 to match backend implementation
       const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      return hashHex;
+      return { hash: hashHex, algorithm: "sha256" };
     }
     // Fallback: simple hash (not cryptographically secure)
     let hash = 0;
@@ -150,10 +150,10 @@ export class ApiService {
       hash = ((hash << 5) - hash) + arr[i];
       hash |= 0; // Convert to 32bit integer
     }
-    return hash.toString(16);
+    return { hash: hash.toString(16), algorithm: "simple" };
   }
 
-  private async initializeUpload(filename: string, size: number, checksum: string): Promise<string> {
+  private async initializeUpload(filename: string, size: number, checksum: {hash: string, algorithm: string}): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/upload/start`, {
       method: 'POST',
       headers: {
@@ -162,7 +162,8 @@ export class ApiService {
       body: JSON.stringify({
         fileName: filename,
         fileSize: size,
-        checksum,
+        checksum: checksum.hash,
+        algorithm: checksum.algorithm,
       }),
     });
 
@@ -174,11 +175,13 @@ export class ApiService {
     return result.uploadId;
   }
 
-  private async uploadChunk(uploadId: string, chunkIndex: number, chunk: Blob): Promise<void> {
+  private async uploadChunk(uploadId: string, chunkIndex: number, chunk: Blob, checksum: {hash: string, algorithm: string}): Promise<void> {
     const formData = new FormData();
     formData.append('chunk', chunk);
     formData.append('sessionId', uploadId);
     formData.append('chunkNumber', chunkIndex.toString());
+    formData.append('checksum', checksum.hash);
+    formData.append('algorithm', checksum.algorithm);
 
     const response = await fetch(`${this.baseUrl}/api/upload/chunk`, {
       method: 'POST',
@@ -190,7 +193,7 @@ export class ApiService {
     }
   }
 
-  private async finalizeUpload(uploadId: string, checksum: string): Promise<UploadResponse> {
+  private async finalizeUpload(uploadId: string, checksum: {hash: string, algorithm: string}): Promise<UploadResponse> {
     const response = await fetch(`${this.baseUrl}/api/upload/complete`, {
       method: 'POST',
       headers: {
@@ -198,7 +201,8 @@ export class ApiService {
       },
       body: JSON.stringify({
         sessionId: uploadId,
-        checksum: checksum,
+        checksum: checksum.hash,
+        algorithm: checksum.algorithm,
       }),
     });
 
