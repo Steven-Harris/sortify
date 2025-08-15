@@ -342,7 +342,6 @@ export class SortifyUpload extends LitElement {
   private async uploadFile(item: UploadFile) {
     try {
       item.abortController = new AbortController();
-      console.log('Uploading file:', item.file);
       
       const uploadResponse = await apiService.uploadFile(item.file, {
         onProgress: (progress) => {

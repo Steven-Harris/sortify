@@ -19,7 +19,7 @@ type UploadHandlers struct {
 }
 
 func NewUploadHandlers(tempDir, mediaPath string) *UploadHandlers {
-	manager := upload.NewManager(tempDir, 10)
+	manager := upload.NewManager(tempDir, 100)
 	organizer := media.NewOrganizer(mediaPath)
 	return &UploadHandlers{
 		manager:   manager,
