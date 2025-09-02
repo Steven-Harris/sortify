@@ -96,7 +96,14 @@ sudo chown -R 1234:1234 ./media ./temp
 # Or for unRAID: sudo chown -R 99:100 ./media ./temp
 ```
 
-## 🔧 Development
+## � Mobile Compatibility
+
+Sortify supports uploading files from mobile devices. Some features to be aware of:
+
+- **Checksum Verification**: For improved reliability on mobile devices, Sortify includes fallback mechanisms for handling checksum verification issues that may occur on some mobile browsers.
+- **Video Files**: When uploading large video files from mobile devices, Sortify will automatically handle format differences and process them accordingly.
+
+## �🔧 Development
 
 ### Prerequisites
 

@@ -502,7 +502,14 @@ export class SortifyUpload extends LitElement {
     }
     
     if (error.includes('Failed to finalize upload')) {
+      if (error.includes('file checksum mismatch')) {
+        return 'Final verification failed. We support many file formats but some may cause errors, especially on mobile. Try a different file or browser.';
+      }
       return 'Could not complete upload. Please try again.';
+    }
+    
+    if (error.includes('maximum concurrent uploads')) {
+      return 'Too many uploads in progress. Please wait for some to complete before starting new ones.';
     }
     
     // Truncate very long messages

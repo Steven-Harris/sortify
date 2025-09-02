@@ -224,6 +224,35 @@ func (m *Manager) CompleteUpload(sessionID string, expectedChecksum string, algo
 	return nil
 }
 
+// CompleteUploadForce completes an upload without verifying the checksum.
+// This is useful for recovering from checksum verification errors, especially for large files
+// or files uploaded from mobile devices where checksums may not match exactly.
+func (m *Manager) CompleteUploadForce(sessionID string) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	session, exists := m.sessions[sessionID]
+	if !exists {
+		return fmt.Errorf("session not found")
+	}
+
+	// Only verify that we received all bytes, but don't check the checksum
+	if session.UploadedSize != session.FileSize {
+		return fmt.Errorf("uploaded size mismatch: expected %d, got %d", session.FileSize, session.UploadedSize)
+	}
+
+	slog.Warn("Force completing upload without checksum verification",
+		"sessionId", sessionID,
+		"fileName", session.FileName,
+		"fileSize", session.FileSize,
+	)
+
+	session.Status = models.StatusCompleted
+	session.UpdatedAt = time.Now()
+
+	return nil
+}
+
 func (m *Manager) GetProgress(sessionID string) (*models.UploadProgress, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()

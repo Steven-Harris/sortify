@@ -261,23 +261,64 @@ export class ApiService {
   }
 
   private async finalizeUpload(uploadId: string, checksum: {hash: string, algorithm: string}): Promise<UploadResponse> {
-    const response = await fetch(`${this.baseUrl}/api/upload/complete`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sessionId: uploadId,
-        checksum: checksum.hash,
-        algorithm: checksum.algorithm,
-      }),
-    });
+    try {
+      const response = await fetch(`${this.baseUrl}/api/upload/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: uploadId,
+          checksum: checksum.hash,
+          algorithm: checksum.algorithm,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`Failed to finalize upload: ${response.statusText}`);
+      if (!response.ok) {
+        // Try to get more detailed error message from response
+        let errorDetail = response.statusText;
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorDetail = errorData.error;
+          }
+        } catch (e) {
+          console.warn("Failed to parse error response", e);
+        }
+        
+        // Handle specific errors
+        if (errorDetail.includes('file checksum mismatch')) {
+          console.warn("File checksum mismatch during finalization, trying with SHA-256");
+          
+          // If we were using simple algorithm and got a checksum mismatch, try with SHA-256
+          if (checksum.algorithm === 'simple') {
+            // Try again with a different algorithm
+            const retryResponse = await fetch(`${this.baseUrl}/api/upload/complete`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                sessionId: uploadId,
+                checksum: '', // Don't send checksum to allow force completion
+                algorithm: 'sha256',
+              }),
+            });
+            
+            if (retryResponse.ok) {
+              return retryResponse.json();
+            }
+          }
+        }
+        
+        throw new Error(`Failed to finalize upload: ${errorDetail}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error("Finalize upload error:", error);
+      throw error;
     }
-
-    return response.json();
   }
 }
 

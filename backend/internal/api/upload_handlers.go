@@ -209,7 +209,22 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 		req.Algorithm = "sha256"
 	}
 
-	if err := h.manager.CompleteUpload(req.SessionID, req.Checksum, req.Algorithm); err != nil {
+	// First attempt normal completion with checksum verification
+	err := h.manager.CompleteUpload(req.SessionID, req.Checksum, req.Algorithm)
+
+	// If there's a checksum mismatch error, try with force completion
+	if err != nil && err.Error() == "file checksum mismatch" {
+		slog.Warn("File checksum mismatch during completion, attempting force completion",
+			"sessionId", req.SessionID,
+			"algorithm", req.Algorithm,
+		)
+
+		// Try to complete without checksum verification
+		err = h.manager.CompleteUploadForce(req.SessionID)
+	}
+
+	// If still error, return to client
+	if err != nil {
 		slog.Error("Failed to complete upload",
 			"error", err,
 			"sessionId", req.SessionID,

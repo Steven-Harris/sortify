@@ -27,9 +27,44 @@ func NewOrganizer(mediaPath string) *Organizer {
 }
 
 func (o *Organizer) OrganizeFile(tempFilePath, originalFileName string) (*MediaInfo, error) {
+	// Log file details before processing
+	fileExt := strings.ToLower(filepath.Ext(originalFileName))
+	fileSize := int64(0)
+	if stat, err := os.Stat(tempFilePath); err == nil {
+		fileSize = stat.Size()
+	}
+
+	slog.Info("Processing file for organization",
+		"tempPath", tempFilePath,
+		"originalFileName", originalFileName,
+		"fileType", fileExt,
+		"fileSize", fileSize)
+
 	info, err := o.extractor.ExtractMetadata(tempFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract metadata: %w", err)
+		// Special handling for video files which might fail metadata extraction
+		if strings.HasPrefix(fileExt, ".mp4") || strings.HasPrefix(fileExt, ".mov") ||
+			strings.HasPrefix(fileExt, ".avi") || strings.HasPrefix(fileExt, ".mkv") {
+			slog.Warn("Failed to extract metadata from video file, using fallback method",
+				"error", err,
+				"file", originalFileName)
+
+			// Create a minimal MediaInfo with file type based on extension
+			info = &MediaInfo{
+				FileName:   originalFileName,
+				MediaType:  "video",
+				DateSource: "file_time",
+			}
+
+			// Try to get file modification time
+			if fileInfo, statErr := os.Stat(tempFilePath); statErr == nil {
+				if fileInfo.ModTime().Year() > 1970 {
+					info.DateTaken = &[]time.Time{fileInfo.ModTime()}[0]
+				}
+			}
+		} else {
+			return nil, fmt.Errorf("failed to extract metadata: %w", err)
+		}
 	}
 
 	info.FileName = originalFileName
