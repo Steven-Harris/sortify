@@ -76,7 +76,31 @@ export class ApiService {
         const end = Math.min(start + chunkSize, file.size);
         const chunk = file.slice(start, end);
 
-        await this.uploadChunk(uploadId, chunkIndex, chunk, checksum);
+        try {
+          await this.uploadChunk(uploadId, chunkIndex, chunk, checksum);
+        } catch (error) {
+          const chunkError = error instanceof Error ? error : new Error('Chunk upload failed');
+          console.warn(`Chunk upload failed: ${chunkError.message}. Retrying with SHA-256...`);
+          
+          // If using simple algorithm and it failed, try again with SHA-256
+          if (checksum.algorithm === 'simple') {
+            // Recalculate checksum using SHA-256 just for this chunk
+            try {
+              const chunkBuffer = await chunk.arrayBuffer();
+              const hashBuffer = await window.crypto.subtle.digest('SHA-256', chunkBuffer);
+              const hashArray = Array.from(new Uint8Array(hashBuffer));
+              const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+              
+              // Try uploading with SHA-256
+              await this.uploadChunk(uploadId, chunkIndex, chunk, { hash: hashHex, algorithm: "sha256" });
+            } catch (retryError) {
+              // If retry fails, throw original error
+              throw chunkError;
+            }
+          } else {
+            throw chunkError;
+          }
+        }
         
         uploadedBytes += chunk.size;
         onProgress?.(uploadedBytes / file.size);
@@ -88,6 +112,12 @@ export class ApiService {
 
     } catch (error) {
       const apiError = error instanceof Error ? error : new Error('Upload failed');
+      
+      // Improve error messages for the user
+      if (apiError.message.includes('chunk checksum mismatch')) {
+        apiError.message = 'Upload failed due to data verification error. This can happen on some mobile browsers. Please try using a different browser or device.';
+      }
+      
       onError?.(apiError);
       throw apiError;
     }
@@ -135,21 +165,41 @@ export class ApiService {
   // Private helper methods
 
   private async calculateChecksum(file: File): Promise<{hash: string, algorithm: string}> {
-    const buffer = await file.arrayBuffer();
-    if (window.crypto && window.crypto.subtle) {
-      // Use SHA256 to match backend implementation
-      const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      return { hash: hashHex, algorithm: "sha256" };
+    // For files smaller than 100MB, load the whole file in memory
+    if (file.size < 100 * 1024 * 1024) {
+      try {
+        const buffer = await file.arrayBuffer();
+        if (window.crypto && window.crypto.subtle) {
+          // Use SHA256 to match backend implementation
+          const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          return { hash: hashHex, algorithm: "sha256" };
+        }
+      } catch (err) {
+        console.warn("Error calculating SHA-256 checksum", err);
+        // Will fall back to simple hash below
+      }
     }
-    // Fallback: simple hash (not cryptographically secure)
+    
+    // Fallback when crypto API fails or for very large files
+    // Use a more consistent implementation of simple hash
     let hash = 0;
-    const arr = new Uint8Array(buffer);
-    for (let i = 0; i < arr.length; i++) {
-      hash = ((hash << 5) - hash) + arr[i];
-      hash |= 0; // Convert to 32bit integer
+    const chunkSize = 2 * 1024 * 1024; // 2MB chunks
+    let offset = 0;
+    
+    while (offset < file.size) {
+      const chunk = await file.slice(offset, Math.min(offset + chunkSize, file.size)).arrayBuffer();
+      const arr = new Uint8Array(chunk);
+      
+      for (let i = 0; i < arr.length; i++) {
+        // Use a simpler hash algorithm that's more consistent across platforms
+        hash = (hash + arr[i]) & 0xFFFFFFFF; 
+      }
+      
+      offset += chunkSize;
     }
+    
     return { hash: hash.toString(16), algorithm: "simple" };
   }
 
@@ -183,13 +233,30 @@ export class ApiService {
     formData.append('checksum', checksum.hash);
     formData.append('algorithm', checksum.algorithm);
 
-    const response = await fetch(`${this.baseUrl}/api/upload/chunk`, {
-      method: 'POST',
-      body: formData,
-    });
+    try {
+      const response = await fetch(`${this.baseUrl}/api/upload/chunk`, {
+        method: 'POST',
+        body: formData,
+      });
 
-    if (!response.ok) {
-      throw new Error(`Failed to upload chunk ${chunkIndex}: ${response.statusText}`);
+      if (!response.ok) {
+        // Try to get more detailed error message from response
+        let errorDetail = response.statusText;
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorDetail = errorData.error;
+          }
+        } catch (e) {
+          // If parsing fails, use the status text
+          console.warn("Failed to parse error response", e);
+        }
+        
+        throw new Error(`Failed to upload chunk ${chunkIndex}: ${errorDetail}`);
+      }
+    } catch (error) {
+      console.error("Upload chunk error:", error);
+      throw error;
     }
   }
 

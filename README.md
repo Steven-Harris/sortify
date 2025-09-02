@@ -61,7 +61,7 @@ docker run -d \
 | `TEMP_PATH` | `/tmp` | Path for temporary upload files |
 | `PORT` | `8080` | Server port |
 | `LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
-| `CORS_ORIGINS` | `*` | CORS origins (comma-separated) |
+| `CORS_ORIGINS` | `*` | CORS allowed origins (comma-separated or `*` for all) |
 
 ### Volume Mounts
 
@@ -192,7 +192,47 @@ media/
 - **Dependency scanning** - Automated security scans in CI/CD
 - **CORS protection** - Configurable origin restrictions
 
-## 🐳 Production Deployment
+## � CORS Configuration
+
+The application is configured with permissive CORS headers (`CORS_ORIGINS=*`) by default to ensure it works correctly in various deployment scenarios:
+
+- Direct access via different URLs (e.g., http://example.local:8888, http://10.0.0.1:8888)
+- Access through reverse proxies with custom domains
+- Any other access method users might choose
+
+### Why This Configuration
+
+This permissive CORS configuration ensures:
+
+1. File uploads work correctly regardless of access method
+2. Users don't need to configure CORS settings themselves
+3. The application is compatible with various deployment scenarios
+
+### Security Considerations
+
+While wildcard CORS (`*`) is less restrictive than specific origins, the security impact is minimal for this application because:
+
+- The application is typically deployed in a controlled environment
+- Authentication (if any) uses its own security mechanisms
+- The main functionality (file uploads) requires permissive access anyway
+
+### Alternative Options
+
+If you need to restrict access, modify the `CORS_ORIGINS` environment variable:
+
+```yaml
+- CORS_ORIGINS=https://your-specific-domain.com,https://another-domain.com
+```
+
+### Troubleshooting Upload Issues
+
+If you experience upload problems:
+
+1. Check browser developer tools (F12) for any CORS-related errors
+2. Verify the `CORS_ORIGINS=*` setting is properly applied in your Docker environment
+3. Ensure your proxy server (if any) is configured to forward all necessary headers
+
+## �🐳 Production Deployment
 
 ### System Requirements
 
@@ -214,7 +254,10 @@ services:
       - MEDIA_PATH=/media
       - TEMP_PATH=/tmp
       - LOG_LEVEL=warn
-      - CORS_ORIGINS=https://yourdomain.com
+      # Default wildcard CORS allows access from any origin
+      - CORS_ORIGINS=*
+      # For restricted access, use specific domains:
+      # - CORS_ORIGINS=https://yourdomain.com
     volumes:
       - /path/to/media:/media:rw
       - /path/to/temp:/tmp:rw

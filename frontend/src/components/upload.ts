@@ -177,7 +177,12 @@ export class SortifyUpload extends LitElement {
           </div>
           <div class="file-details">
             ${this.formatFileSize(item.file.size)} • ${item.file.type.split('/')[0] || 'Unknown'}
-            ${item.error ? html` • <span style="color: var(--red-400);">${item.error}</span>` : ''}
+            ${item.error ? html`
+              <div class="error-message">
+                <span class="error-icon">⚠️</span>
+                <span>${this.formatErrorMessage(item.error)}</span>
+              </div>
+            ` : ''}
           </div>
         </div>
 
@@ -484,6 +489,28 @@ export class SortifyUpload extends LitElement {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+  
+  private formatErrorMessage(error: string): string {
+    // Make error messages more user-friendly
+    if (error.includes('chunk checksum mismatch') || error.includes('verification error')) {
+      return 'Upload failed due to data verification issue. Try again or use a different browser.';
+    }
+    
+    if (error.includes('Failed to upload chunk')) {
+      return 'Upload connection issue. Check your network and try again.';
+    }
+    
+    if (error.includes('Failed to finalize upload')) {
+      return 'Could not complete upload. Please try again.';
+    }
+    
+    // Truncate very long messages
+    if (error.length > 100) {
+      return error.substring(0, 100) + '...';
+    }
+    
+    return error;
   }
 
   private getThumbnailUrl(file: File): string {

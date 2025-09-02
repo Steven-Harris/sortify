@@ -204,13 +204,15 @@ func (m *Manager) CalculateChecksum(filePath string, algorithm string) (string, 
 	switch algorithm {
 	case "simple":
 		// Simple fallback hash (not cryptographically secure)
-		var hash int32 = 0
+		// Updated to match frontend implementation for better cross-platform compatibility
+		var hash uint32 = 0
 		buf := make([]byte, 4096)
 		for {
 			n, err := file.Read(buf)
 			if n > 0 {
 				for i := 0; i < n; i++ {
-					hash = ((hash << 5) - hash) + int32(buf[i])
+					// Simpler algorithm that's more consistent across platforms
+					hash = (hash + uint32(buf[i])) & 0xFFFFFFFF
 				}
 			}
 			if err == io.EOF {

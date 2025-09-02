@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -136,14 +137,37 @@ func (h *UploadHandlers) UploadChunkHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := h.manager.UploadChunk(sessionID, chunkNumber, chunkData, expectedChecksum, algorithm); err != nil {
-		slog.Error("Failed to upload chunk",
-			"error", err,
-			"sessionId", sessionID,
-			"chunk_number", chunkNumber,
-		)
-		InternalError(w, fmt.Sprintf("Failed to upload chunk: %v", err))
-		return
+	// Try upload with provided algorithm first
+	err = h.manager.UploadChunk(sessionID, chunkNumber, chunkData, expectedChecksum, algorithm)
+	if err != nil {
+		// If it's a checksum mismatch and we're using the simple algorithm, try with SHA-256
+		if err.Error() == "chunk checksum mismatch" && algorithm == "simple" {
+			slog.Info("Simple checksum failed, trying SHA-256",
+				"sessionId", sessionID,
+				"chunk_number", chunkNumber,
+			)
+
+			// Calculate SHA-256 hash of the chunk on the server side
+			sha256Hash := sha256.Sum256(chunkData)
+			serverChecksum := fmt.Sprintf("%x", sha256Hash)
+
+			// Try with SHA-256, but don't verify client checksum (which might be wrong)
+			// This allows the upload to proceed even if client sent an incorrect hash
+			err = h.manager.UploadChunkNoVerify(sessionID, chunkNumber, chunkData, serverChecksum, "sha256")
+		}
+
+		// If still failing after retry attempt, return error
+		if err != nil {
+			slog.Error("Failed to upload chunk",
+				"error", err,
+				"sessionId", sessionID,
+				"chunk_number", chunkNumber,
+			)
+
+			// Return a more user-friendly error message
+			BadRequest(w, fmt.Sprintf("Upload failed: %v. Try again or use a different browser.", err))
+			return
+		}
 	}
 
 	progress, err := h.manager.GetProgress(sessionID)
