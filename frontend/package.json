@@ -20,15 +20,15 @@
   "devDependencies": {
     "@types/jsdom": "^27.0.0",
     "@vite-pwa/assets-generator": "^1.0.2",
-    "@vitest/coverage-v8": "^4.0.14",
-    "@vitest/ui": "^4.0.14",
+    "@vitest/coverage-v8": "^4.0.15",
+    "@vitest/ui": "^4.0.15",
     "@web/test-runner": "^0.20.2",
     "@web/test-runner-playwright": "^0.11.0",
     "jsdom": "^27.2.0",
     "typescript": "~5.9.3",
-    "vite": "^7.2.6",
+    "vite": "^7.2.7",
     "vite-plugin-pwa": "^1.2.0",
-    "vitest": "^4.0.14",
+    "vitest": "^4.0.15",
     "workbox-window": "^7.4.0"
   },
   "resolutions": {
