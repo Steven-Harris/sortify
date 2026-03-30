@@ -44,7 +44,7 @@ jobs:
         go test -v -race -coverprofile=coverage.out ./...
 
     - name: Upload Go coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         file: backend/coverage.out
         flags: backend
@@ -61,7 +61,7 @@ jobs:
         node-version: 'lts/*'
 
     - name: Install pnpm
-      uses: pnpm/action-setup@v4
+      uses: pnpm/action-setup@v5
       with:
         version: latest
 
@@ -86,7 +86,7 @@ jobs:
       run: pnpm build
 
     - name: Upload frontend coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         file: frontend/coverage/coverage-final.json
         flags: frontend
