@@ -71,7 +71,7 @@ describe('SortifyUpload', () => {
 
   it('maps upload results into process responses', async () => {
     const file = new File(['test'], 'IMG_20240315_143022.jpg', { type: 'image/jpeg' });
-    const item = {
+    const item: any = {
       id: 'item-1',
       file,
       progress: 0,
