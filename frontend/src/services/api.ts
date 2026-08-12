@@ -1,7 +1,3 @@
-/**
- * API service for communicating with the Sortify backend
- */
-
 export interface UploadOptions {
   chunkSize?: number;
   onProgress?: (progress: number) => void;
@@ -9,13 +5,55 @@ export interface UploadOptions {
   signal?: AbortSignal;
 }
 
-export interface UploadResponse {
-  sessionId?: string;
-  id?: string;
+export interface MediaMetadata {
+  filename?: string;
+  fileSize?: number;
+  mimeType?: string;
+  mediaType?: 'photo' | 'video' | 'other';
+  dateTaken?: string;
+  dateSource?: string;
+  width?: number;
+  height?: number;
+  duration?: string;
+  camera?: {
+    make?: string;
+    model?: string;
+    software?: string;
+    lensModel?: string;
+    focalLength?: string;
+    aperture?: string;
+    shutterSpeed?: string;
+    iso?: string;
+    flash?: string;
+  };
+  location?: {
+    latitude?: number;
+    longitude?: number;
+    altitude?: number;
+  };
+  extraMetadata?: Record<string, string>;
+}
+
+export interface UploadResult {
+  sessionId: string;
   filename: string;
-  mediaInfo?: any;
-  organized?: boolean;
-  size?: number;
+  fileName?: string;
+  originalFileName?: string;
+  finalFileName?: string;
+  mediaInfo: MediaMetadata;
+  organized: boolean;
+  duplicate?: boolean;
+  finalPath?: string;
+  relativePath?: string;
+  storedFilename?: string;
+  conflictRenamed?: boolean;
+  conflictRenamedFrom?: string;
+  metadataDateSource?: string;
+  metadataDateTaken?: string;
+}
+
+export interface UploadResponse extends UploadResult {
+  id?: string;
   checksum?: string;
   status?: 'uploaded' | 'processing' | 'completed' | 'error';
 }
@@ -24,15 +62,9 @@ export interface ProcessResponse {
   id: string;
   originalPath: string;
   organizedPath: string;
-  metadata: {
-    date?: string;
-    camera?: string;
-    location?: string;
-    width?: number;
-    height?: number;
-    duration?: number;
-  };
+  metadata: MediaMetadata;
   status: 'processing' | 'completed' | 'error';
+  duplicate?: boolean;
   error?: string;
 }
 
@@ -40,30 +72,17 @@ export class ApiService {
   private baseUrl: string;
 
   constructor(baseUrl?: string) {
-    // Use relative URLs by default (works with any host/port)
-    // Only use provided baseUrl for development/testing
     this.baseUrl = baseUrl || '';
   }
 
-  /**
-   * Upload a file with chunked upload support
-   */
   async uploadFile(file: File, options: UploadOptions = {}): Promise<UploadResponse> {
     const { chunkSize = 1024 * 1024, onProgress, onError, signal } = options;
-    
-    try {
-      // Calculate file checksum (simple hash for demo)
-      const checksum = await this.calculateChecksum(file);
-      
-      // Check if file already exists (disabled for now)
-      // const existingFile = await this.checkFileExists(checksum);
-      // if (existingFile) {
-      //   return existingFile;
-      // }
 
-      // Start chunked upload
-      const uploadId = await this.initializeUpload(file.name, file.size, checksum);
-      
+    try {
+      onProgress?.(0);
+      const checksum = await this.calculateChecksum(file);
+      const uploadId = await this.initializeUpload(file.name, file.size, checksum, chunkSize);
+
       const totalChunks = Math.ceil(file.size / chunkSize);
       let uploadedBytes = 0;
 
@@ -76,71 +95,38 @@ export class ApiService {
         const end = Math.min(start + chunkSize, file.size);
         const chunk = file.slice(start, end);
 
-        try {
-          await this.uploadChunk(uploadId, chunkIndex, chunk, checksum);
-        } catch (error) {
-          const chunkError = error instanceof Error ? error : new Error('Chunk upload failed');
-          console.warn(`Chunk upload failed: ${chunkError.message}. Retrying with SHA-256...`);
-          
-          // If using simple algorithm and it failed, try again with SHA-256
-          if (checksum.algorithm === 'simple') {
-            // Recalculate checksum using SHA-256 just for this chunk
-            try {
-              const chunkBuffer = await chunk.arrayBuffer();
-              const hashBuffer = await window.crypto.subtle.digest('SHA-256', chunkBuffer);
-              const hashArray = Array.from(new Uint8Array(hashBuffer));
-              const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-              
-              // Try uploading with SHA-256
-              await this.uploadChunk(uploadId, chunkIndex, chunk, { hash: hashHex, algorithm: "sha256" });
-            } catch (retryError) {
-              // If retry fails, throw original error
-              throw chunkError;
-            }
-          } else {
-            throw chunkError;
-          }
-        }
-        
+        await this.uploadChunk(uploadId, chunkIndex, chunk, checksum);
+
         uploadedBytes += chunk.size;
         onProgress?.(uploadedBytes / file.size);
       }
 
-      // Finalize upload
       const result = await this.finalizeUpload(uploadId, checksum);
-      return result;
+      const filename = result.finalFileName || result.fileName || result.filename;
+      const normalizedMediaInfo: MediaMetadata = {
+        ...(result.mediaInfo || {}),
+        filename,
+        dateSource: result.mediaInfo?.dateSource || result.metadataDateSource,
+        dateTaken: result.mediaInfo?.dateTaken || result.metadataDateTaken,
+      };
 
+      return {
+        ...result,
+        filename,
+        mediaInfo: normalizedMediaInfo,
+        id: result.sessionId,
+        status: 'completed',
+      };
     } catch (error) {
       const apiError = error instanceof Error ? error : new Error('Upload failed');
-      
-      // Improve error messages for the user
-      if (apiError.message.includes('chunk checksum mismatch')) {
-        apiError.message = 'Upload failed due to data verification error. This can happen on some mobile browsers. Please try using a different browser or device.';
-      }
-      
       onError?.(apiError);
       throw apiError;
     }
   }
 
-  /**
-   * Check upload status
-   */
-  async getUploadStatus(uploadId: string): Promise<UploadResponse> {
-    const response = await fetch(`${this.baseUrl}/api/upload/status/${uploadId}`);
-    if (!response.ok) {
-      throw new Error(`Failed to get upload status: ${response.statusText}`);
-    }
-    return response.json();
-  }
-
-
-  /**
-   * List organized files
-   */
   async listFiles(query?: string, type?: string, limit?: number, offset?: number): Promise<any> {
-    const url = new URL(`${this.baseUrl}/api/media/files`);
-    
+    const url = new URL(`${this.baseUrl}/api/media/files`, window.location.origin);
+
     if (query) {
       url.searchParams.set('q', query);
     }
@@ -154,7 +140,7 @@ export class ApiService {
       url.searchParams.set('offset', offset.toString());
     }
 
-    const response = await fetch(url.toString());
+    const response = await fetch(this.toRequestUrl(url));
     if (!response.ok) {
       throw new Error(`Failed to list files: ${response.statusText}`);
     }
@@ -162,48 +148,37 @@ export class ApiService {
     return response.json();
   }
 
-  // Private helper methods
-
-  private async calculateChecksum(file: File): Promise<{hash: string, algorithm: string}> {
-    // For files smaller than 100MB, load the whole file in memory
-    if (file.size < 100 * 1024 * 1024) {
-      try {
-        const buffer = await file.arrayBuffer();
-        if (window.crypto && window.crypto.subtle) {
-          // Use SHA256 to match backend implementation
-          const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
-          const hashArray = Array.from(new Uint8Array(hashBuffer));
-          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-          return { hash: hashHex, algorithm: "sha256" };
-        }
-      } catch (err) {
-        console.warn("Error calculating SHA-256 checksum", err);
-        // Will fall back to simple hash below
-      }
+  private async calculateChecksum(file: File): Promise<{ hash: string; algorithm: string }> {
+    if (window.crypto?.subtle) {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      return { hash: hashHex, algorithm: 'sha256' };
     }
-    
-    // Fallback when crypto API fails or for very large files
-    // Use a more consistent implementation of simple hash
+
     let hash = 0;
-    const chunkSize = 2 * 1024 * 1024; // 2MB chunks
+    const chunkSize = 2 * 1024 * 1024;
     let offset = 0;
-    
+
     while (offset < file.size) {
       const chunk = await file.slice(offset, Math.min(offset + chunkSize, file.size)).arrayBuffer();
-      const arr = new Uint8Array(chunk);
-      
-      for (let i = 0; i < arr.length; i++) {
-        // Use a simpler hash algorithm that's more consistent across platforms
-        hash = (hash + arr[i]) & 0xFFFFFFFF; 
+      const bytes = new Uint8Array(chunk);
+      for (let index = 0; index < bytes.length; index++) {
+        hash = (hash + bytes[index]) & 0xffffffff;
       }
-      
       offset += chunkSize;
     }
-    
-    return { hash: hash.toString(16), algorithm: "simple" };
+
+    return { hash: hash.toString(16), algorithm: 'simple' };
   }
 
-  private async initializeUpload(filename: string, size: number, checksum: {hash: string, algorithm: string}): Promise<string> {
+  private async initializeUpload(
+    filename: string,
+    size: number,
+    checksum: { hash: string; algorithm: string },
+    chunkSize: number,
+  ): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/upload/start`, {
       method: 'POST',
       headers: {
@@ -214,6 +189,7 @@ export class ApiService {
         fileSize: size,
         checksum: checksum.hash,
         algorithm: checksum.algorithm,
+        chunkSize,
       }),
     });
 
@@ -225,7 +201,12 @@ export class ApiService {
     return result.uploadId;
   }
 
-  private async uploadChunk(uploadId: string, chunkIndex: number, chunk: Blob, checksum: {hash: string, algorithm: string}): Promise<void> {
+  private async uploadChunk(
+    uploadId: string,
+    chunkIndex: number,
+    chunk: Blob,
+    checksum: { hash: string; algorithm: string },
+  ): Promise<void> {
     const formData = new FormData();
     formData.append('chunk', chunk);
     formData.append('sessionId', uploadId);
@@ -233,117 +214,76 @@ export class ApiService {
     formData.append('checksum', checksum.hash);
     formData.append('algorithm', checksum.algorithm);
 
-    try {
-      const response = await fetch(`${this.baseUrl}/api/upload/chunk`, {
-        method: 'POST',
-        body: formData,
-      });
+    const response = await fetch(`${this.baseUrl}/api/upload/chunk`, {
+      method: 'POST',
+      body: formData,
+    });
 
-      if (!response.ok) {
-        // Try to get more detailed error message from response
-        let errorDetail = response.statusText;
-        try {
-          const errorData = await response.json();
-          if (errorData && errorData.error) {
-            errorDetail = errorData.error;
-          }
-        } catch (e) {
-          // If parsing fails, use the status text
-          console.warn("Failed to parse error response", e);
+    if (!response.ok) {
+      let errorDetail = response.statusText;
+      try {
+        const errorData = await response.json();
+        if (errorData?.error) {
+          errorDetail = errorData.error;
         }
-        
-        throw new Error(`Failed to upload chunk ${chunkIndex}: ${errorDetail}`);
+      } catch {
+        // Fall back to statusText.
       }
-    } catch (error) {
-      console.error("Upload chunk error:", error);
-      throw error;
+
+      throw new Error(`Failed to upload chunk ${chunkIndex}: ${errorDetail}`);
     }
   }
 
-  private async finalizeUpload(uploadId: string, checksum: {hash: string, algorithm: string}): Promise<UploadResponse> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/upload/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId: uploadId,
-          checksum: checksum.hash,
-          algorithm: checksum.algorithm,
-        }),
-      });
+  private async finalizeUpload(
+    uploadId: string,
+    checksum: { hash: string; algorithm: string },
+  ): Promise<UploadResult> {
+    const response = await fetch(`${this.baseUrl}/api/upload/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sessionId: uploadId,
+        checksum: checksum.hash,
+        algorithm: checksum.algorithm,
+      }),
+    });
 
-      if (!response.ok) {
-        // Try to get more detailed error message from response
-        let errorDetail = response.statusText;
-        try {
-          const errorData = await response.json();
-          if (errorData && errorData.error) {
-            errorDetail = errorData.error;
-          }
-        } catch (e) {
-          console.warn("Failed to parse error response", e);
+    if (!response.ok) {
+      let errorDetail = response.statusText;
+      try {
+        const errorData = await response.json();
+        if (errorData?.error) {
+          errorDetail = errorData.error;
         }
-        
-        // Handle specific errors
-        if (errorDetail.includes('file checksum mismatch')) {
-          console.warn("File checksum mismatch during finalization, trying with SHA-256");
-          
-          // If we were using simple algorithm and got a checksum mismatch, try with SHA-256
-          if (checksum.algorithm === 'simple') {
-            // Try again with a different algorithm
-            const retryResponse = await fetch(`${this.baseUrl}/api/upload/complete`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                sessionId: uploadId,
-                checksum: '', // Don't send checksum to allow force completion
-                algorithm: 'sha256',
-              }),
-            });
-            
-            if (retryResponse.ok) {
-              return retryResponse.json();
-            }
-          }
-        }
-        
-        throw new Error(`Failed to finalize upload: ${errorDetail}`);
+      } catch {
+        // Fall back to statusText.
       }
 
-      return response.json();
-    } catch (error) {
-      console.error("Finalize upload error:", error);
-      throw error;
+      throw new Error(`Failed to finalize upload: ${errorDetail}`);
     }
+
+    return response.json();
+  }
+
+  private toRequestUrl(url: URL): string {
+    return this.baseUrl ? url.toString() : `${url.pathname}${url.search}`;
   }
 }
 
-// Create default instance with environment-aware base URL
 function createApiService(): ApiService {
-  // In development, use empty string to rely on Vite proxy
-  // In production, use relative URLs (same origin)
-  // Only use full URL if explicitly set via environment variable
   const isDevelopment = import.meta.env.DEV;
-  
+
   if (isDevelopment) {
-    // Check if we have an explicit API URL (for non-proxy development)
     const explicitApiUrl = import.meta.env.VITE_API_URL;
     if (explicitApiUrl) {
-      console.log('Using explicit API URL for development:', explicitApiUrl);
       return new ApiService(explicitApiUrl);
     }
-    // Use empty string to rely on Vite proxy
-    console.log('Using Vite proxy for API requests');
     return new ApiService('');
   }
-  
-  // Production: always use relative URLs
+
   return new ApiService('');
 }
 
-// Export a default instance
 export const apiService = createApiService();

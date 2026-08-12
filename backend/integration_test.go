@@ -198,10 +198,11 @@ func TestIntegrationUploadAndOrganize(t *testing.T) {
 		}
 
 		// Organize second file (should detect duplicate)
-		_, err = organizer.OrganizeFile(tempFilePath2, session2.FileName)
+		mediaInfo2, err := organizer.OrganizeFile(tempFilePath2, session2.FileName)
 		if err != nil {
 			t.Fatalf("Failed to organize file 2: %v", err)
 		}
+		assert.Equal(t, "duplicate_test.jpg", mediaInfo2.FileName)
 
 		// Count files after second upload - should still be same count
 		finalFileCount := 0

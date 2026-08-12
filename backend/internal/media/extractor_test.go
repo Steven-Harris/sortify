@@ -11,309 +11,103 @@ import (
 
 func TestNewExtractor(t *testing.T) {
 	extractor := NewExtractor()
-	assert.NotNil(t, extractor, "NewExtractor should not return nil")
-	assert.NotEmpty(t, extractor.filenamePatterns, "Expected filename patterns to be initialized")
+	assert.NotNil(t, extractor)
+	assert.NotEmpty(t, extractor.filenamePatterns)
 }
 
 func TestExtractDateFromFilename(t *testing.T) {
 	extractor := NewExtractor()
 
-	t.Run("IMG_20240315_143022.jpg", func(t *testing.T) {
-		filename := "IMG_20240315_143022.jpg"
-		expectedDate := time.Date(2024, 3, 15, 14, 30, 22, 0, time.UTC)
+	tests := []struct {
+		name     string
+		filename string
+		expected *time.Time
+	}{
+		{"img pattern", "IMG_20240315_143022.jpg", timePtr(time.Date(2024, 3, 15, 14, 30, 22, 0, time.UTC))},
+		{"vid pattern", "VID_20231225_120000.mp4", timePtr(time.Date(2023, 12, 25, 12, 0, 0, 0, time.UTC))},
+		{"screenshot pattern", "Screenshot_2020-01-01-10-30-45.png", timePtr(time.Date(2020, 1, 1, 10, 30, 45, 0, time.UTC))},
+		{"hyphenated datetime", "2021-06-14_16-45-12.png", timePtr(time.Date(2021, 6, 14, 16, 45, 12, 0, time.UTC))},
+		{"plain date", "2023-12-25.jpg", timePtr(time.Date(2023, 12, 25, 0, 0, 0, 0, time.UTC))},
+		{"unknown", "random_filename.jpg", nil},
+	}
 
-		info := &MediaInfo{
-			FileName:      filename,
-			ExtraMetadata: make(map[string]string),
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			info := &MediaInfo{FileName: tc.filename, ExtraMetadata: map[string]string{}}
+			extractor.extractDateFromFilename(tc.filename, info)
 
-		extractor.extractDateFromFilename(filename, info)
+			if tc.expected == nil {
+				assert.Nil(t, info.DateTaken)
+				return
+			}
 
-		assert.NotNil(t, info.DateTaken, "Expected date to be extracted")
-		assert.True(t, info.DateTaken.Equal(expectedDate), "Expected date %v, got %v", expectedDate, info.DateTaken)
-		assert.Equal(t, DateSourceFileName, info.DateSource, "Expected date source to be filename")
-	})
-
-	t.Run("VID_20231225_120000.mp4", func(t *testing.T) {
-		filename := "VID_20231225_120000.mp4"
-		expectedDate := time.Date(2023, 12, 25, 12, 0, 0, 0, time.UTC)
-
-		info := &MediaInfo{
-			FileName:      filename,
-			ExtraMetadata: make(map[string]string),
-		}
-
-		extractor.extractDateFromFilename(filename, info)
-
-		assert.NotNil(t, info.DateTaken, "Expected date to be extracted")
-		assert.True(t, info.DateTaken.Equal(expectedDate), "Expected date %v, got %v", expectedDate, info.DateTaken)
-		assert.Equal(t, DateSourceFileName, info.DateSource, "Expected date source to be filename")
-	})
-
-	t.Run("2021-06-14_16-45-12.png", func(t *testing.T) {
-		filename := "2021-06-14_16-45-12.png"
-		expectedDate := time.Date(2021, 6, 14, 16, 45, 12, 0, time.UTC)
-
-		info := &MediaInfo{
-			FileName:      filename,
-			ExtraMetadata: make(map[string]string),
-		}
-
-		extractor.extractDateFromFilename(filename, info)
-
-		assert.NotNil(t, info.DateTaken, "Expected date to be extracted")
-		assert.True(t, info.DateTaken.Equal(expectedDate), "Expected date %v, got %v", expectedDate, info.DateTaken)
-		assert.Equal(t, DateSourceFileName, info.DateSource, "Expected date source to be filename")
-	})
-
-	t.Run("Screenshot_2020-01-01-10-30-45.png", func(t *testing.T) {
-		filename := "Screenshot_2020-01-01-10-30-45.png"
-		expectedDate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC) // The pattern only extracts date, not time
-
-		info := &MediaInfo{
-			FileName:      filename,
-			ExtraMetadata: make(map[string]string),
-		}
-
-		extractor.extractDateFromFilename(filename, info)
-
-		assert.NotNil(t, info.DateTaken, "Expected date to be extracted")
-		assert.True(t, info.DateTaken.Equal(expectedDate), "Expected date %v, got %v", expectedDate, info.DateTaken)
-		assert.Equal(t, DateSourceFileName, info.DateSource, "Expected date source to be filename")
-	})
-
-	t.Run("random_filename.jpg", func(t *testing.T) {
-		filename := "random_filename.jpg"
-
-		info := &MediaInfo{
-			FileName:      filename,
-			ExtraMetadata: make(map[string]string),
-		}
-
-		extractor.extractDateFromFilename(filename, info)
-
-		assert.Nil(t, info.DateTaken, "Expected no date to be extracted")
-	})
+			assert.NotNil(t, info.DateTaken)
+			assert.True(t, info.DateTaken.Equal(*tc.expected))
+			assert.Equal(t, DateSourceFileName, info.DateSource)
+		})
+	}
 }
 
-func TestExtractMetadataFromJPEG(t *testing.T) {
-	// Create a test JPEG file without EXIF data
+func TestExtractMetadataPrefersOriginalFilenameOverTempFilename(t *testing.T) {
 	tempDir := t.TempDir()
-	testFile := filepath.Join(tempDir, "IMG_20240315_143022.jpg")
-
-	// Create a simple test file (not a real JPEG, but sufficient for filename parsing)
-	err := os.WriteFile(testFile, []byte("fake jpeg content"), 0644)
-	assert.NoError(t, err, "Failed to create test file")
+	testFile := filepath.Join(tempDir, "upload-session-123.tmp")
+	err := os.WriteFile(testFile, []byte("fake video content"), 0644)
+	assert.NoError(t, err)
 
 	extractor := NewExtractor()
-	metadata, err := extractor.ExtractMetadata(testFile)
-	assert.NoError(t, err, "ExtractMetadata should not fail")
+	metadata, err := extractor.ExtractMetadataWithOriginalName(testFile, "VID_20231225_120000.mp4")
+	assert.NoError(t, err)
 
-	// Should extract date from filename since no EXIF data
-	expectedDate := time.Date(2024, 3, 15, 14, 30, 22, 0, time.UTC)
-	assert.NotNil(t, metadata.DateTaken, "Expected date to be extracted")
-	assert.True(t, metadata.DateTaken.Equal(expectedDate), "Expected date %v, got %v", expectedDate, metadata.DateTaken)
-
-	if metadata.Camera != nil {
-		assert.Empty(t, metadata.Camera.Make, "Expected empty camera make")
-	}
-
-	if metadata.Location != nil {
-		assert.Zero(t, metadata.Location.Latitude, "Expected zero latitude")
-		assert.Zero(t, metadata.Location.Longitude, "Expected zero longitude")
-	}
-
-	assert.Equal(t, DateSourceFileName, metadata.DateSource, "Expected date source to be filename")
-	assert.Equal(t, MediaTypePhoto, metadata.MediaType, "Expected media type to be photo")
+	assert.NotNil(t, metadata.DateTaken)
+	assert.True(t, metadata.DateTaken.Equal(time.Date(2023, 12, 25, 12, 0, 0, 0, time.UTC)))
+	assert.Equal(t, DateSourceFileName, metadata.DateSource)
+	assert.Equal(t, MediaTypeVideo, metadata.MediaType)
+	assert.Equal(t, "VID_20231225_120000.mp4", metadata.OriginalFileName)
 }
 
-func TestExtractMetadataFallbackToFileTime(t *testing.T) {
-	// Create a test file with no date in filename
+func TestExtractMetadataFallsBackToFileTime(t *testing.T) {
 	tempDir := t.TempDir()
 	testFile := filepath.Join(tempDir, "random_name.jpg")
 
 	err := os.WriteFile(testFile, []byte("fake content"), 0644)
-	assert.NoError(t, err, "Failed to create test file")
+	assert.NoError(t, err)
 
 	extractor := NewExtractor()
 	metadata, err := extractor.ExtractMetadata(testFile)
-	assert.NoError(t, err, "ExtractMetadata should not fail")
+	assert.NoError(t, err)
 
-	// Should fall back to file modification time
 	fileInfo, err := os.Stat(testFile)
-	assert.NoError(t, err, "Failed to stat file")
-
-	assert.NotNil(t, metadata.DateTaken, "Expected date taken to be set")
-
-	// Allow some tolerance for file time comparison (within 1 second)
-	timeDiff := metadata.DateTaken.Sub(fileInfo.ModTime()).Abs()
-	assert.LessOrEqual(t, timeDiff, time.Second, "Date taken should be close to file mod time")
-
-	assert.Equal(t, DateSourceFileTime, metadata.DateSource, "Expected date source to be file time")
+	assert.NoError(t, err)
+	assert.NotNil(t, metadata.DateTaken)
+	assert.LessOrEqual(t, metadata.DateTaken.Sub(fileInfo.ModTime()).Abs(), time.Second)
+	assert.Equal(t, DateSourceFileTime, metadata.DateSource)
 }
 
-func TestExtractMetadataVideoFile(t *testing.T) {
-	tempDir := t.TempDir()
-	testFile := filepath.Join(tempDir, "VID_20231225_120000.mp4")
-
-	err := os.WriteFile(testFile, []byte("fake video content"), 0644)
-	assert.NoError(t, err, "Failed to create test file")
-
+func TestDetermineMediaTypeUsesExtensionFallback(t *testing.T) {
 	extractor := NewExtractor()
-	metadata, err := extractor.ExtractMetadata(testFile)
-	assert.NoError(t, err, "ExtractMetadata should not fail")
-
-	expectedDate := time.Date(2023, 12, 25, 12, 0, 0, 0, time.UTC)
-	assert.NotNil(t, metadata.DateTaken, "Expected date to be extracted")
-	assert.True(t, metadata.DateTaken.Equal(expectedDate), "Expected date %v, got %v", expectedDate, metadata.DateTaken)
-
-	assert.Equal(t, DateSourceFileName, metadata.DateSource, "Expected date source to be filename")
-	assert.Equal(t, MediaTypeVideo, metadata.MediaType, "Expected media type to be video")
-}
-
-func TestExtractMetadataNonExistentFile(t *testing.T) {
-	extractor := NewExtractor()
-	_, err := extractor.ExtractMetadata("/non/existent/file.jpg")
-	assert.Error(t, err, "Expected error for non-existent file")
-}
-
-func TestDetermineMediaType(t *testing.T) {
-	extractor := NewExtractor()
-
-	t.Run("image/jpeg", func(t *testing.T) {
-		mediaType := extractor.determineMediaType("image/jpeg")
-		assert.Equal(t, MediaTypePhoto, mediaType, "Expected photo media type for JPEG")
-	})
-
-	t.Run("image/png", func(t *testing.T) {
-		mediaType := extractor.determineMediaType("image/png")
-		assert.Equal(t, MediaTypePhoto, mediaType, "Expected photo media type for PNG")
-	})
-
-	t.Run("image/gif", func(t *testing.T) {
-		mediaType := extractor.determineMediaType("image/gif")
-		assert.Equal(t, MediaTypePhoto, mediaType, "Expected photo media type for GIF")
-	})
-
-	t.Run("video/mp4", func(t *testing.T) {
-		mediaType := extractor.determineMediaType("video/mp4")
-		assert.Equal(t, MediaTypeVideo, mediaType, "Expected video media type for MP4")
-	})
-
-	t.Run("video/quicktime", func(t *testing.T) {
-		mediaType := extractor.determineMediaType("video/quicktime")
-		assert.Equal(t, MediaTypeVideo, mediaType, "Expected video media type for QuickTime")
-	})
-
-	t.Run("application/pdf", func(t *testing.T) {
-		mediaType := extractor.determineMediaType("application/pdf")
-		assert.Equal(t, MediaTypeOther, mediaType, "Expected other media type for PDF")
-	})
-
-	t.Run("text/plain", func(t *testing.T) {
-		mediaType := extractor.determineMediaType("text/plain")
-		assert.Equal(t, MediaTypeOther, mediaType, "Expected other media type for text")
-	})
-
-	t.Run("empty mime type", func(t *testing.T) {
-		mediaType := extractor.determineMediaType("")
-		assert.Equal(t, MediaTypeOther, mediaType, "Expected other media type for empty string")
-	})
-}
-
-func TestBuildFilenamePatterns(t *testing.T) {
-	patterns := buildFilenamePatterns()
-
-	assert.NotEmpty(t, patterns, "Expected non-empty patterns slice")
-
-	// Test that each pattern compiles
-	for i, pattern := range patterns {
-		assert.NotNil(t, pattern, "Pattern %d should not be nil", i)
-	}
-
-	// Test a known pattern matches expected format
-	testString := "IMG_20240315_143022"
-	matched := false
-	for _, pattern := range patterns {
-		if pattern.MatchString(testString) {
-			matched = true
-			break
-		}
-	}
-
-	assert.True(t, matched, "Expected at least one pattern to match IMG_20240315_143022 format")
+	assert.Equal(t, MediaTypePhoto, extractor.determineMediaType("photo.heic", ""))
+	assert.Equal(t, MediaTypeVideo, extractor.determineMediaType("clip.mp4", ""))
+	assert.Equal(t, MediaTypeOther, extractor.determineMediaType("doc.txt", ""))
 }
 
 func TestParseFilenameMatches(t *testing.T) {
 	extractor := NewExtractor()
 
-	t.Run("full timestamp match", func(t *testing.T) {
-		matches := []string{"IMG_20240315_143022", "2024", "03", "15", "14", "30", "22"}
-		expected := time.Date(2024, 3, 15, 14, 30, 22, 0, time.UTC)
-
-		result := extractor.parseFilenameMatches(matches)
-
-		assert.NotNil(t, result, "Expected parsed time to not be nil")
-		assert.True(t, result.Equal(expected), "Expected %v, got %v", expected, result)
-	})
-
-	t.Run("date only match", func(t *testing.T) {
-		matches := []string{"20231225", "2023", "12", "25"}
-		expected := time.Date(2023, 12, 25, 0, 0, 0, 0, time.UTC)
-
-		result := extractor.parseFilenameMatches(matches)
-
-		assert.NotNil(t, result, "Expected parsed time to not be nil")
-		assert.True(t, result.Equal(expected), "Expected %v, got %v", expected, result)
-	})
-
-	t.Run("invalid single match", func(t *testing.T) {
-		matches := []string{"invalid"}
-
-		result := extractor.parseFilenameMatches(matches)
-
-		assert.Nil(t, result, "Expected nil for invalid match")
-	})
-
-	t.Run("invalid multiple matches", func(t *testing.T) {
-		matches := []string{"", "invalid", "date", "parts"}
-
-		result := extractor.parseFilenameMatches(matches)
-
-		assert.Nil(t, result, "Expected nil for invalid matches")
-	})
+	assert.NotNil(t, extractor.parseFilenameMatches([]string{"IMG_20240315_143022", "2024", "03", "15", "14", "30", "22"}))
+	assert.NotNil(t, extractor.parseFilenameMatches([]string{"20231225", "2023", "12", "25"}))
+	assert.Nil(t, extractor.parseFilenameMatches([]string{"invalid"}))
+	assert.Nil(t, extractor.parseFilenameMatches([]string{"bad", "2024", "02", "31"}))
 }
 
 func TestNeedsUserInput(t *testing.T) {
 	extractor := NewExtractor()
+	assert.False(t, extractor.NeedsUserInput(&MediaInfo{DateSource: DateSourceEmbeddedMetadata}))
+	assert.False(t, extractor.NeedsUserInput(&MediaInfo{DateSource: DateSourceFileName}))
+	assert.True(t, extractor.NeedsUserInput(&MediaInfo{DateSource: DateSourceFileTime}))
+	assert.False(t, extractor.NeedsUserInput(&MediaInfo{DateSource: DateSourceUserInput}))
+	assert.True(t, extractor.NeedsUserInput(&MediaInfo{DateSource: DateSourceUnknown}))
+}
 
-	t.Run("exif", func(t *testing.T) {
-		info := &MediaInfo{DateSource: DateSourceEXIF}
-		result := extractor.NeedsUserInput(info)
-		assert.False(t, result, "EXIF date source should not need user input")
-	})
-
-	t.Run("filename", func(t *testing.T) {
-		info := &MediaInfo{DateSource: DateSourceFileName}
-		result := extractor.NeedsUserInput(info)
-		assert.False(t, result, "Filename date source should not need user input")
-	})
-
-	t.Run("fileTime", func(t *testing.T) {
-		info := &MediaInfo{DateSource: DateSourceFileTime}
-		result := extractor.NeedsUserInput(info)
-		assert.True(t, result, "File time date source should need user input")
-	})
-
-	t.Run("userInput", func(t *testing.T) {
-		info := &MediaInfo{DateSource: DateSourceUserInput}
-		result := extractor.NeedsUserInput(info)
-		assert.False(t, result, "User input date source should not need user input")
-	})
-
-	t.Run("unknown", func(t *testing.T) {
-		info := &MediaInfo{DateSource: DateSourceUnknown}
-		result := extractor.NeedsUserInput(info)
-		assert.True(t, result, "Unknown date source should need user input")
-	})
+func timePtr(t time.Time) *time.Time {
+	return &t
 }

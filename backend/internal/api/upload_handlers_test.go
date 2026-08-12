@@ -6,9 +6,13 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/Steven-Harris/sortify/backend/internal/media"
 	"github.com/Steven-Harris/sortify/backend/internal/models"
 	"github.com/stretchr/testify/assert"
 )
@@ -303,10 +307,14 @@ func TestCompleteUploadHandler(t *testing.T) {
 
 	t.Run("valid completion request", func(t *testing.T) {
 		sessionID := createTestSession(t, handler)
+		session, err := handler.manager.GetSession(sessionID)
+		assert.NoError(t, err)
+		chunk := bytes.Repeat([]byte("a"), int(session.FileSize))
+		err = handler.manager.UploadChunk(sessionID, 0, chunk, "", "sha256")
+		assert.NoError(t, err)
 
 		request := &models.CompleteUploadRequest{
 			SessionID: sessionID,
-			Checksum:  "test-checksum",
 		}
 
 		body, err := json.Marshal(request)
@@ -318,8 +326,16 @@ func TestCompleteUploadHandler(t *testing.T) {
 
 		handler.CompleteUploadHandler(rr, req)
 
-		// Note: This might fail in actual implementation due to checksum validation
-		// but the test structure is correct
+		assert.Equal(t, http.StatusOK, rr.Code, "Expected successful completion")
+
+		var response models.UploadCompletionResult
+		err = json.Unmarshal(rr.Body.Bytes(), &response)
+		assert.NoError(t, err, "Expected JSON response")
+		assert.Equal(t, sessionID, response.SessionID)
+		assert.True(t, response.Organized)
+		assert.False(t, response.Duplicate)
+		assert.NotEmpty(t, response.RelativePath)
+		assert.NotEmpty(t, response.AbsolutePath)
 	})
 
 	t.Run("missing session ID", func(t *testing.T) {
@@ -358,6 +374,39 @@ func TestCompleteUploadHandler(t *testing.T) {
 
 		assert.Equal(t, http.StatusMethodNotAllowed, rr.Code, "Expected method not allowed")
 	})
+}
+
+func TestBuildUploadCompletionResult(t *testing.T) {
+	mediaRoot := t.TempDir()
+	dateTaken := time.Date(2024, 3, 15, 14, 30, 22, 0, time.UTC)
+	session := &models.UploadSession{
+		FileName: "IMG_20240315_143022.jpg",
+		Metadata: map[string]string{"camera": "test"},
+	}
+	mediaInfo := &media.MediaInfo{
+		FileName:   "IMG_20240315_143022(1).jpg",
+		DateSource: media.DateSourceFileName,
+		DateTaken:  &dateTaken,
+	}
+
+	organizedPath := filepath.Join(mediaRoot, "2024", "03", "IMG_20240315_143022(1).jpg")
+	assert.NoError(t, os.MkdirAll(filepath.Dir(organizedPath), 0o755))
+	assert.NoError(t, os.WriteFile(organizedPath, []byte("x"), 0o644))
+
+	result := buildUploadCompletionResult(
+		"session-1",
+		filepath.Join(mediaRoot, "upload.tmp"),
+		session,
+		mediaInfo,
+		mediaRoot,
+	)
+
+	assert.True(t, result.Organized)
+	assert.True(t, result.ConflictRenamed)
+	assert.Equal(t, "IMG_20240315_143022.jpg", result.ConflictRenamedFrom)
+	assert.Equal(t, "2024/03/IMG_20240315_143022(1).jpg", result.RelativePath)
+	assert.Equal(t, "filename", result.MetadataDateSource)
+	assert.Equal(t, session.Metadata, result.Metadata)
 }
 
 func TestPauseUploadHandler(t *testing.T) {

@@ -30,3 +30,4 @@ tmp
 # app
 backend/media
 coverage
+.impeccable

@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/Steven-Harris/sortify/backend/internal/media"
@@ -264,6 +266,8 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	result := buildUploadCompletionResult(req.SessionID, tempPath, session, mediaInfo, h.organizer.MediaPath())
+
 	if err := h.manager.CleanupSession(req.SessionID); err != nil {
 		slog.Warn("Failed to cleanup session",
 			"error", err,
@@ -273,20 +277,64 @@ func (h *UploadHandlers) CompleteUploadHandler(w http.ResponseWriter, r *http.Re
 
 	slog.Info("Upload completed and organized successfully",
 		"sessionId", req.SessionID,
-		"filename", mediaInfo.FileName,
-		"media_type", mediaInfo.MediaType,
-		"date_taken", mediaInfo.DateTaken,
-		"date_source", mediaInfo.DateSource,
+		"filename", result.FinalFileName,
+		"duplicate", result.Duplicate,
+		"organized", result.Organized,
+		"date_source", result.MetadataDateSource,
 	)
 
-	result := map[string]any{
-		"sessionId": req.SessionID,
-		"filename":  mediaInfo.FileName,
-		"mediaInfo": mediaInfo,
-		"organized": true,
+	Success(w, result)
+}
+
+func buildUploadCompletionResult(sessionID, tempPath string, session *models.UploadSession, mediaInfo *media.MediaInfo, mediaRoot string) models.UploadCompletionResult {
+	result := models.UploadCompletionResult{
+		SessionID:          sessionID,
+		FileName:           session.FileName,
+		OriginalFileName:   session.FileName,
+		FinalFileName:      session.FileName,
+		Metadata:           session.Metadata,
+		MetadataDateSource: string(mediaInfo.DateSource),
+		MetadataDateTaken:  mediaInfo.DateTaken,
 	}
 
-	Success(w, result)
+	organizedPath := findOrganizedPath(mediaRoot, mediaInfo.FileName)
+	if organizedPath == "" && mediaInfo.FileName != session.FileName {
+		organizedPath = findOrganizedPath(mediaRoot, session.FileName)
+	}
+
+	if organizedPath != "" {
+		result.AbsolutePath = organizedPath
+		if rel, err := filepath.Rel(mediaRoot, organizedPath); err == nil {
+			result.RelativePath = filepath.ToSlash(rel)
+		}
+		result.FinalFileName = filepath.Base(organizedPath)
+		result.Organized = true
+	} else {
+		result.AbsolutePath = tempPath
+		result.Duplicate = true
+		result.Organized = false
+	}
+
+	if result.Organized && result.FinalFileName != session.FileName {
+		result.ConflictRenamed = true
+		result.ConflictRenamedFrom = session.FileName
+	}
+
+	return result
+}
+
+func findOrganizedPath(mediaRoot, fileName string) string {
+	var found string
+	_ = filepath.Walk(mediaRoot, func(path string, info fs.FileInfo, err error) error {
+		if err != nil || found != "" || info == nil || info.IsDir() {
+			return nil
+		}
+		if info.Name() == fileName {
+			found = path
+		}
+		return nil
+	})
+	return found
 }
 
 func (h *UploadHandlers) GetProgressHandler(w http.ResponseWriter, r *http.Request) {

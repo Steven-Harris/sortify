@@ -77,3 +77,20 @@ type CompleteUploadRequest struct {
 	Checksum  string `json:"checksum"`
 	Algorithm string `json:"algorithm"`
 }
+
+// UploadCompletionResult is the canonical per-file completion payload for uploads.
+type UploadCompletionResult struct {
+	SessionID           string            `json:"sessionId"`
+	FileName            string            `json:"fileName"`
+	OriginalFileName    string            `json:"originalFileName"`
+	Duplicate           bool              `json:"duplicate"`
+	Organized           bool              `json:"organized"`
+	RelativePath        string            `json:"relativePath,omitempty"`
+	AbsolutePath        string            `json:"absolutePath,omitempty"`
+	FinalFileName       string            `json:"finalFileName,omitempty"`
+	ConflictRenamed     bool              `json:"conflictRenamed"`
+	ConflictRenamedFrom string            `json:"conflictRenamedFrom,omitempty"`
+	MetadataDateSource  string            `json:"metadataDateSource,omitempty"`
+	MetadataDateTaken   *time.Time        `json:"metadataDateTaken,omitempty"`
+	Metadata            map[string]string `json:"metadata,omitempty"`
+}

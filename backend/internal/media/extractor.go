@@ -26,23 +26,36 @@ func NewExtractor() *Extractor {
 }
 
 func (e *Extractor) ExtractMetadata(filePath string) (*MediaInfo, error) {
-	info := &MediaInfo{
-		FileName:      filepath.Base(filePath),
-		ExtraMetadata: make(map[string]string),
-	}
+	return e.ExtractMetadataWithOriginalName(filePath, "")
+}
 
+func (e *Extractor) ExtractMetadataWithOriginalName(filePath, originalFileName string) (*MediaInfo, error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get file info: %w", err)
 	}
-	info.FileSize = fileInfo.Size()
 
-	info.MimeType = mime.TypeByExtension(filepath.Ext(filePath))
-	info.MediaType = e.determineMediaType(info.MimeType)
+	sourceFileName := filepath.Base(filePath)
+	detectedName := sourceFileName
+	if originalFileName != "" {
+		detectedName = filepath.Base(originalFileName)
+	}
 
-	e.extractDateFromEXIF(filePath, info)
+	info := &MediaInfo{
+		FileName:         sourceFileName,
+		OriginalFileName: originalFileName,
+		FileSize:         fileInfo.Size(),
+		ExtraMetadata:    make(map[string]string),
+	}
+
+	info.MimeType = mime.TypeByExtension(filepath.Ext(detectedName))
+	info.MediaType = e.determineMediaType(detectedName, info.MimeType)
+
+	e.extractDateFromEmbeddedMetadata(filePath, info)
+
+	filenameForParsing := detectedName
 	if info.DateTaken == nil {
-		e.extractDateFromFilename(info.FileName, info)
+		e.extractDateFromFilename(filenameForParsing, info)
 	}
 	if info.DateTaken == nil {
 		e.extractDateFromFileTime(fileInfo, info)
@@ -50,6 +63,7 @@ func (e *Extractor) ExtractMetadata(filePath string) (*MediaInfo, error) {
 
 	slog.Info("Metadata extracted",
 		"filename", info.FileName,
+		"originalFilename", info.OriginalFileName,
 		"media_type", info.MediaType,
 		"date_source", info.DateSource,
 		"date_taken", info.DateTaken,
@@ -62,31 +76,42 @@ func (e *Extractor) ExtractDateFromFilename(filename string, info *MediaInfo) {
 	e.extractDateFromFilename(filename, info)
 }
 
-func (e *Extractor) determineMediaType(mimeType string) MediaType {
-	if strings.HasPrefix(mimeType, "image/") {
+func (e *Extractor) determineMediaType(fileName, mimeType string) MediaType {
+	switch {
+	case strings.HasPrefix(mimeType, "image/"):
 		return MediaTypePhoto
-	}
-	if strings.HasPrefix(mimeType, "video/") {
+	case strings.HasPrefix(mimeType, "video/"):
 		return MediaTypeVideo
 	}
-	return MediaTypeOther
+
+	switch strings.ToLower(filepath.Ext(fileName)) {
+	case ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".heic", ".heif":
+		return MediaTypePhoto
+	case ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".3gp", ".wmv", ".flv":
+		return MediaTypeVideo
+	default:
+		return MediaTypeOther
+	}
 }
 
-func (e *Extractor) extractDateFromEXIF(filePath string, info *MediaInfo) {
-	if info.MediaType != MediaTypePhoto {
+func (e *Extractor) extractDateFromEmbeddedMetadata(filePath string, info *MediaInfo) {
+	if info.MediaType != MediaTypePhoto && info.MediaType != MediaTypeVideo {
 		return
 	}
 
-	// Validate file path to prevent directory traversal attacks
+	e.extractDateFromEXIF(filePath, info)
+}
+
+func (e *Extractor) extractDateFromEXIF(filePath string, info *MediaInfo) {
 	cleanPath, err := security.ValidateFilePath(filePath)
 	if err != nil {
-		slog.Warn("Invalid file path for EXIF extraction", "error", err, "path", filePath)
+		slog.Warn("Invalid file path for metadata extraction", "error", err, "path", filePath)
 		return
 	}
 
 	file, err := os.Open(cleanPath) // #nosec G304 - path validated by security.ValidateFilePath
 	if err != nil {
-		slog.Debug("Failed to open file for EXIF", "error", err, "file", filePath)
+		slog.Debug("Failed to open file for metadata extraction", "error", err, "file", filePath)
 		return
 	}
 	defer file.Close()
@@ -97,10 +122,10 @@ func (e *Extractor) extractDateFromEXIF(filePath string, info *MediaInfo) {
 		return
 	}
 
-	if dt, err := x.DateTime(); err == nil {
-		info.DateTaken = &dt
-		info.DateSource = DateSourceEXIF
-		slog.Debug("Date extracted from EXIF", "date", dt, "file", filePath)
+	if dt := extractEXIFDate(x); dt != nil {
+		info.DateTaken = dt
+		info.DateSource = DateSourceEmbeddedMetadata
+		slog.Debug("Date extracted from embedded metadata", "date", dt, "file", filePath)
 	}
 
 	if info.Camera == nil {
@@ -133,6 +158,50 @@ func (e *Extractor) extractDateFromEXIF(filePath string, info *MediaInfo) {
 	}
 }
 
+func extractEXIFDate(x *exif.Exif) *time.Time {
+	if dt, err := x.DateTime(); err == nil {
+		return &dt
+	}
+
+	tags := []exif.FieldName{
+		exif.DateTimeOriginal,
+		exif.DateTimeDigitized,
+		exif.DateTime,
+	}
+
+	for _, tag := range tags {
+		field, err := x.Get(tag)
+		if err != nil {
+			continue
+		}
+		value, err := field.StringVal()
+		if err != nil {
+			continue
+		}
+		if parsed := parseEXIFTime(strings.TrimSpace(value)); parsed != nil {
+			return parsed
+		}
+	}
+
+	return nil
+}
+
+func parseEXIFTime(value string) *time.Time {
+	layouts := []string{
+		"2006:01:02 15:04:05",
+		time.RFC3339,
+		"2006-01-02 15:04:05",
+	}
+
+	for _, layout := range layouts {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return &parsed
+		}
+	}
+
+	return nil
+}
+
 func (e *Extractor) extractDateFromFilename(filename string, info *MediaInfo) {
 	for _, pattern := range e.filenamePatterns {
 		matches := pattern.FindStringSubmatch(filename)
@@ -155,7 +224,6 @@ func (e *Extractor) parseFilenameMatches(matches []string) *time.Time {
 	year, err1 := strconv.Atoi(matches[1])
 	month, err2 := strconv.Atoi(matches[2])
 	day, err3 := strconv.Atoi(matches[3])
-
 	if err1 != nil || err2 != nil || err3 != nil {
 		return nil
 	}
@@ -174,6 +242,10 @@ func (e *Extractor) parseFilenameMatches(matches []string) *time.Time {
 	}
 
 	date := time.Date(year, time.Month(month), day, hour, minute, second, 0, time.UTC)
+	if date.Year() != year || int(date.Month()) != month || date.Day() != day {
+		return nil
+	}
+
 	return &date
 }
 
@@ -190,22 +262,16 @@ func (e *Extractor) NeedsUserInput(info *MediaInfo) bool {
 
 func buildFilenamePatterns() []*regexp.Regexp {
 	patterns := []string{
-		// IMG_20231225_143022.jpg
 		`IMG_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})`,
-		// 20231225_143022.jpg
-		`(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})`,
-		// 2023-12-25_14-30-22.jpg
-		`(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})`,
-		// 2023-12-25.jpg
-		`(\d{4})-(\d{2})-(\d{2})`,
-		// 20231225.jpg
-		`(\d{4})(\d{2})(\d{2})`,
-		// VID_20231225_143022.mp4
 		`VID_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})`,
-		// Screenshot_2023-12-25-14-30-22.png
+		`PXL_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})`,
+		`MVIMG_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})`,
 		`Screenshot_(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})-(\d{2})`,
-		// WhatsApp Image 2023-12-25 at 14.30.22.jpeg
 		`WhatsApp.+(\d{4})-(\d{2})-(\d{2}).+(\d{2})\.(\d{2})\.(\d{2})`,
+		`(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})`,
+		`(\d{4})-(\d{2})-(\d{2})[_ -](\d{2})[-:.](\d{2})[-:.](\d{2})`,
+		`(\d{4})-(\d{2})-(\d{2})`,
+		`(\d{4})(\d{2})(\d{2})`,
 	}
 
 	var compiledPatterns []*regexp.Regexp
