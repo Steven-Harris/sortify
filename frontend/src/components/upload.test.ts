@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SortifyUpload, type UploadFile } from './upload.js';
+import { SortifyUpload } from './upload.js';
 
 vi.mock('../services/api.js', () => ({
   apiService: {
