@@ -28,7 +28,6 @@ func NewManager(tempDir string, maxSessions int) *Manager {
 		slog.Warn("Failed to create temp directory during manager initialization", "error", err, "tempDir", tempDir)
 	}
 
-	// You may want to pass mediaPath here, adjust as needed
 	storageMgr := storage.NewManager("")
 
 	return &Manager{
@@ -48,12 +47,9 @@ func (m *Manager) CreateSession(req *models.StartUploadRequest) (*models.UploadS
 	}
 
 	sessionID := generateSessionID()
-
 	totalChunks := int((req.FileSize + req.ChunkSize - 1) / req.ChunkSize)
-
 	tempPath := filepath.Join(m.tempDir, sessionID+".tmp")
 
-	// Validate temp path using security helper and ensure it's within temp directory
 	cleanPath, err := security.ValidatePathWithinDirectory(tempPath, m.tempDir)
 	if err != nil {
 		return nil, fmt.Errorf("temp path validation failed: %w", err)
@@ -119,10 +115,8 @@ func (m *Manager) UploadChunk(sessionID string, chunkNumber int, chunkData []byt
 
 	var actualChecksum string
 	if algorithm == "simple" {
-		// Simple fallback hash
 		var hash uint32 = 0
 		for i := 0; i < len(chunkData); i++ {
-			// Use the updated simple hash algorithm that's consistent with frontend
 			hash = (hash + uint32(chunkData[i])) & 0xFFFFFFFF
 		}
 		actualChecksum = fmt.Sprintf("%x", hash)
@@ -138,8 +132,7 @@ func (m *Manager) UploadChunk(sessionID string, chunkNumber int, chunkData []byt
 	return m.writeChunk(session, chunkNumber, chunkData)
 }
 
-// UploadChunkNoVerify uploads a chunk without verifying the checksum
-// This is useful for recovering from checksum mismatch errors
+// UploadChunkNoVerify uploads a chunk without verifying the checksum.
 func (m *Manager) UploadChunkNoVerify(sessionID string, chunkNumber int, chunkData []byte, serverChecksum string, algorithm string) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -149,7 +142,6 @@ func (m *Manager) UploadChunkNoVerify(sessionID string, chunkNumber int, chunkDa
 		return fmt.Errorf("session not found")
 	}
 
-	// Log that we're using the no-verify path for debugging
 	slog.Info("Using UploadChunkNoVerify",
 		"sessionId", sessionID,
 		"chunk_number", chunkNumber,
@@ -160,7 +152,6 @@ func (m *Manager) UploadChunkNoVerify(sessionID string, chunkNumber int, chunkDa
 	return m.writeChunk(session, chunkNumber, chunkData)
 }
 
-// Helper method to write chunk data to disk
 func (m *Manager) writeChunk(session *models.UploadSession, chunkNumber int, chunkData []byte) error {
 	offset := int64(chunkNumber) * session.ChunkSize
 
@@ -198,11 +189,28 @@ func (m *Manager) CompleteUpload(sessionID string, expectedChecksum string, algo
 		return fmt.Errorf("session not found")
 	}
 
+	return m.completeUploadLocked(session, expectedChecksum, algorithm, true)
+}
+
+// CompleteUploadForce completes an upload without verifying the checksum.
+func (m *Manager) CompleteUploadForce(sessionID string) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	session, exists := m.sessions[sessionID]
+	if !exists {
+		return fmt.Errorf("session not found")
+	}
+
+	return m.completeUploadLocked(session, "", "", false)
+}
+
+func (m *Manager) completeUploadLocked(session *models.UploadSession, expectedChecksum string, algorithm string, verifyChecksum bool) error {
 	if session.UploadedSize != session.FileSize {
 		return fmt.Errorf("uploaded size mismatch: expected %d, got %d", session.FileSize, session.UploadedSize)
 	}
 
-	if expectedChecksum != "" || session.Checksum != "" {
+	if verifyChecksum && (expectedChecksum != "" || session.Checksum != "") {
 		actualChecksum, err := m.calculateFileChecksum(session.TempPath, algorithm)
 		if err != nil {
 			return fmt.Errorf("failed to calculate file checksum: %w", err)
@@ -218,34 +226,13 @@ func (m *Manager) CompleteUpload(sessionID string, expectedChecksum string, algo
 		}
 	}
 
-	session.Status = models.StatusCompleted
-	session.UpdatedAt = time.Now()
-
-	return nil
-}
-
-// CompleteUploadForce completes an upload without verifying the checksum.
-// This is useful for recovering from checksum verification errors, especially for large files
-// or files uploaded from mobile devices where checksums may not match exactly.
-func (m *Manager) CompleteUploadForce(sessionID string) error {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
-	session, exists := m.sessions[sessionID]
-	if !exists {
-		return fmt.Errorf("session not found")
+	if !verifyChecksum {
+		slog.Warn("Force completing upload without checksum verification",
+			"sessionId", session.ID,
+			"fileName", session.FileName,
+			"fileSize", session.FileSize,
+		)
 	}
-
-	// Only verify that we received all bytes, but don't check the checksum
-	if session.UploadedSize != session.FileSize {
-		return fmt.Errorf("uploaded size mismatch: expected %d, got %d", session.FileSize, session.UploadedSize)
-	}
-
-	slog.Warn("Force completing upload without checksum verification",
-		"sessionId", sessionID,
-		"fileName", session.FileName,
-		"fileSize", session.FileSize,
-	)
 
 	session.Status = models.StatusCompleted
 	session.UpdatedAt = time.Now()
@@ -378,5 +365,6 @@ func (m *Manager) calculateFileChecksum(filePath string, algorithm string) (stri
 }
 
 func generateSessionID() string {
-	return fmt.Sprintf("upload_%d_%d", time.Now().UnixNano(), time.Now().Unix())
+	now := time.Now()
+	return fmt.Sprintf("upload_%d_%d", now.UnixNano(), now.Unix())
 }

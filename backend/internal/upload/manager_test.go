@@ -65,16 +65,19 @@ func TestCreateSessionMaxLimit(t *testing.T) {
 	}
 
 	// Create first session - should succeed
-	_, err := manager.CreateSession(req)
+	session1, err := manager.CreateSession(req)
 	if err != nil {
 		t.Fatalf("First session creation failed: %v", err)
 	}
 
 	// Create second session - should succeed
 	req.FileName = "test2.jpg"
-	_, err = manager.CreateSession(req)
+	session2, err := manager.CreateSession(req)
 	if err != nil {
 		t.Fatalf("Second session creation failed: %v", err)
+	}
+	if session1.ID == session2.ID {
+		t.Fatalf("Expected unique session IDs, got duplicate %s", session1.ID)
 	}
 
 	// Create third session - should fail
@@ -516,4 +519,32 @@ func TestGetTempFilePath(t *testing.T) {
 	if tempPath != session.TempPath {
 		t.Errorf("Expected temp path %s, got %s", session.TempPath, tempPath)
 	}
+}
+
+func TestCompleteUploadForce(t *testing.T) {
+	tempDir := t.TempDir()
+	manager := NewManager(tempDir, 5)
+
+	req := &models.StartUploadRequest{
+		FileName:  "test.jpg",
+		FileSize:  10,
+		ChunkSize: 10,
+		Checksum:  "wrong",
+	}
+
+	session, err := manager.CreateSession(req)
+	assert.NoError(t, err)
+
+	err = manager.UploadChunk(session.ID, 0, []byte("0123456789"), "", "sha256")
+	assert.NoError(t, err)
+
+	err = manager.CompleteUpload(session.ID, "wrong", "sha256")
+	assert.Error(t, err)
+
+	err = manager.CompleteUploadForce(session.ID)
+	assert.NoError(t, err)
+
+	completed, err := manager.GetSession(session.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, models.StatusCompleted, completed.Status)
 }

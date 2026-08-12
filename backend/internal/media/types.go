@@ -5,18 +5,21 @@ import (
 )
 
 type MediaInfo struct {
-	FileName      string            `json:"filename"`
-	FileSize      int64             `json:"fileSize"`
-	MimeType      string            `json:"mimeType"`
-	MediaType     MediaType         `json:"mediaType"`
-	DateTaken     *time.Time        `json:"dateTaken,omitempty"`
-	DateSource    DateSource        `json:"dateSource"`
-	Width         int               `json:"width,omitempty"`
-	Height        int               `json:"height,omitempty"`
-	Duration      *time.Duration    `json:"duration,omitempty"`
-	Camera        *CameraInfo       `json:"camera,omitempty"`
-	Location      *LocationInfo     `json:"location,omitempty"`
-	ExtraMetadata map[string]string `json:"extraMetadata,omitempty"`
+	FileName         string            `json:"filename"`
+	OriginalFileName string            `json:"originalFileName,omitempty"`
+	CanonicalPath    string            `json:"canonicalPath,omitempty"`
+	IsDuplicate      bool              `json:"isDuplicate,omitempty"`
+	FileSize         int64             `json:"fileSize"`
+	MimeType         string            `json:"mimeType"`
+	MediaType        MediaType         `json:"mediaType"`
+	DateTaken        *time.Time        `json:"dateTaken,omitempty"`
+	DateSource       DateSource        `json:"dateSource"`
+	Width            int               `json:"width,omitempty"`
+	Height           int               `json:"height,omitempty"`
+	Duration         *time.Duration    `json:"duration,omitempty"`
+	Camera           *CameraInfo       `json:"camera,omitempty"`
+	Location         *LocationInfo     `json:"location,omitempty"`
+	ExtraMetadata    map[string]string `json:"extraMetadata,omitempty"`
 }
 
 type MediaType string
@@ -31,6 +34,7 @@ type DateSource string
 
 const (
 	DateSourceEXIF      DateSource = "exif"
+	DateSourceEmbeddedMetadata DateSource = "embeddedMetadata"
 	DateSourceFileName  DateSource = "filename"
 	DateSourceFileTime  DateSource = "fileTime"
 	DateSourceUserInput DateSource = "userInput"

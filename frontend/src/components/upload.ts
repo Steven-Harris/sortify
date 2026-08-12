@@ -1,26 +1,32 @@
 import { LitElement, html, unsafeCSS } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
-import { apiService, type UploadResponse, type ProcessResponse } from '../services/api.js';
+import { customElement, property, state } from 'lit/decorators.js';
+import { apiService, type ProcessResponse, type UploadResponse } from '../services/api.js';
 import { generateUUID } from '../utils/uuid.js';
 import uploadStyles from '../styles/upload.css?inline';
+
+type UploadItemStatus = 'pending' | 'uploading' | 'completed' | 'error' | 'paused' | 'processing';
 
 export interface UploadFile {
   id: string;
   file: File;
   progress: number;
-  status: 'pending' | 'uploading' | 'completed' | 'error' | 'paused' | 'processing';
+  status: UploadItemStatus;
   uploadId?: string;
-  processId?: string;
   uploadResponse?: UploadResponse;
   processResponse?: ProcessResponse;
   error?: string;
   abortController?: AbortController;
 }
 
-/**
- * Upload Component with Drag & Drop
- * Handles file selection, upload queue, and progress tracking
- */
+interface UploadSummary {
+  total: number;
+  completed: number;
+  duplicates: number;
+  failed: number;
+  processing: number;
+  pending: number;
+}
+
 @customElement('sortify-upload')
 export class SortifyUpload extends LitElement {
   static styles = unsafeCSS(uploadStyles);
@@ -29,7 +35,7 @@ export class SortifyUpload extends LitElement {
   disabled = false;
 
   @property({ type: Number })
-  maxFileSize = 0; // 0 = no limit
+  maxFileSize = 0;
 
   @state()
   private uploadQueue: UploadFile[] = [];
@@ -46,9 +52,11 @@ export class SortifyUpload extends LitElement {
   private fileInputRef?: HTMLInputElement;
 
   render() {
+    const summary = this.getSummary();
+
     return html`
       <div class="upload-container">
-        <div 
+        <div
           class="dropzone ${this.isDragOver ? 'drag-over' : ''}"
           @click=${this.openFileDialog}
           @dragover=${this.handleDragOver}
@@ -65,14 +73,11 @@ export class SortifyUpload extends LitElement {
                 <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </div>
-            <h3 class="dropzone-title">Drop your photos and videos here</h3>
+            <h3 class="dropzone-title">Bulk upload your photo and video library</h3>
             <p class="dropzone-subtitle">
-              Supports JPG, PNG, GIF, MP4, MOV and more. No file size limit.
+              Sortify now treats uploads as a queue, verifies each file, skips exact duplicates, and organizes by trusted metadata first.
             </p>
-            <button 
-              class="btn-primary"
-              ?disabled=${this.disabled}
-            >
+            <button class="btn-primary" ?disabled=${this.disabled}>
               Choose Files
             </button>
           </div>
@@ -86,45 +91,57 @@ export class SortifyUpload extends LitElement {
           @change=${this.handleFileSelect}
         />
 
+        ${summary.total > 0 ? html`
+          <div class="upload-summary">
+            <div class="summary-card">
+              <span class="summary-value">${summary.total}</span>
+              <span class="summary-label">Queued</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-value">${summary.completed}</span>
+              <span class="summary-label">Stored</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-value">${summary.duplicates}</span>
+              <span class="summary-label">Duplicates skipped</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-value">${summary.failed}</span>
+              <span class="summary-label">Failed</span>
+            </div>
+          </div>
+        ` : null}
+
         ${this.uploadQueue.length > 0 ? html`
           <div class="upload-queue">
             <div class="queue-header">
               <h4 class="queue-title">
                 Upload Queue
-                <span style="font-weight: 400; color: var(--gray-500); font-size: 1rem;">
-                  ${this.uploadQueue.length} ${this.uploadQueue.length === 1 ? 'file' : 'files'}
+                <span class="queue-subtitle">
+                  ${this.describeQueueState(summary)}
                 </span>
               </h4>
               <div class="queue-actions">
-                <button 
-                  class="btn-secondary"
-                  @click=${this.pauseAll}
-                >
-                  ${this.isUploading ? '⏸️ Pause All' : '▶️ Resume All'}
+                <button class="btn-secondary" @click=${this.pauseAll}>
+                  ${this.isUploading ? '⏸️ Pause Queue' : '▶️ Resume Queue'}
                 </button>
-                <button 
-                  class="btn-secondary"
-                  @click=${this.clearCompleted}
-                >
+                <button class="btn-secondary" @click=${this.clearCompleted}>
                   🗑️ Clear Completed
                 </button>
-                <button 
-                  class="btn-danger"
-                  @click=${this.clearAll}
-                >
+                <button class="btn-danger" @click=${this.clearAll}>
                   ❌ Clear All
                 </button>
               </div>
             </div>
 
-            ${this.uploadQueue.map(item => this.renderUploadItem(item))}
+            ${this.uploadQueue.map((item) => this.renderUploadItem(item))}
           </div>
         ` : html`
           <div class="empty-state">
             <div class="empty-state-icon">📂</div>
             <p class="empty-state-text">No files selected yet</p>
             <p style="font-size: 0.875rem; margin-top: 0.5rem; opacity: 0.8;">
-              Drop some files above or click to browse your computer
+              Drop a batch above or click to browse your library.
             </p>
           </div>
         `}
@@ -133,186 +150,163 @@ export class SortifyUpload extends LitElement {
   }
 
   private renderUploadItem(item: UploadFile) {
-    const getFileIcon = (file: File) => {
-      if (file.type.startsWith('image/')) {
-        return html`<div class="file-icon image">
-          <img 
-            src="${this.getThumbnailUrl(file)}" 
-            alt="${file.name}"
-            class="thumbnail-image"
-            @error=${() => this.handleThumbnailError}
-          />
-        </div>`;
-      } else if (file.type.startsWith('video/')) {
-        return html`<div class="file-icon video">🎬</div>`;
-      }
-      return html`<div class="file-icon">📄</div>`;
-    };
-
-    const getStatusBadge = (status: string) => {
-      const badges = {
-        pending: { icon: '⏳', class: 'status-pending' },
-        uploading: { icon: '⬆️', class: 'status-uploading' },
-        processing: { icon: '⚙️', class: 'status-processing' },
-        completed: { icon: '✅', class: 'status-completed' },
-        error: { icon: '❌', class: 'status-error' },
-        paused: { icon: '⏸️', class: 'status-paused' }
-      };
-      
-      const badge = badges[status as keyof typeof badges] || badges.pending;
-      return html`
-        <div class="status-badge ${badge.class}" title="${status}">
-          ${badge.icon}
-        </div>
-      `;
-    };
+    const result = item.processResponse;
+    const metadata = result?.metadata;
+    const duplicate = result?.duplicate ?? item.uploadResponse?.duplicate ?? false;
+    const organizationLabel = duplicate
+      ? 'Duplicate skipped'
+      : result?.organizedPath || item.uploadResponse?.relativePath || 'Awaiting organization details';
+    const detailLabel = metadata?.dateTaken && metadata?.dateSource
+      ? `${metadata.dateSource} • ${new Date(metadata.dateTaken).toLocaleString()}`
+      : metadata?.dateSource || 'No trusted capture date';
 
     return html`
       <div class="upload-item">
-        ${getFileIcon(item.file)}
-        
+        ${this.getFileIcon(item.file)}
+
         <div class="file-info">
           <div class="file-name" title="${item.file.name}">
             ${item.file.name}
           </div>
           <div class="file-details">
             ${this.formatFileSize(item.file.size)} • ${item.file.type.split('/')[0] || 'Unknown'}
-            ${item.error ? html`
-              <div class="error-message">
-                <span class="error-icon">⚠️</span>
-                <span>${this.formatErrorMessage(item.error)}</span>
-              </div>
-            ` : ''}
           </div>
+          ${result ? html`
+            <div class="result-chip ${duplicate ? 'duplicate' : 'stored'}">
+              ${organizationLabel}
+            </div>
+            <div class="result-meta">${detailLabel}</div>
+          ` : null}
+          ${item.error ? html`
+            <div class="error-message">
+              <span class="error-icon">⚠️</span>
+              <span>${this.formatErrorMessage(item.error)}</span>
+            </div>
+          ` : null}
         </div>
 
-        ${item.status !== 'completed' ? html`
-          <div class="progress-container">
-            <div class="progress-bar">
-              <div 
-                class="progress-fill" 
-                style="width: ${item.progress}%"
-              ></div>
-            </div>
-            <div class="progress-text">
-              ${item.progress}% 
-              ${item.status === 'uploading' ? 'uploading' : ''}
-              ${item.status === 'processing' ? 'processing' : ''}
-            </div>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 100%; transform: scaleX(${item.progress / 100})"></div>
           </div>
-        ` : ''}
+          <div class="progress-text">${item.progress}% ${this.getProgressLabel(item.status)}</div>
+        </div>
 
-        ${getStatusBadge(item.status)}
+        <div class="status-badge ${this.getStatusClass(item.status)}" title="${item.status}">
+          ${this.getStatusIcon(item.status)}
+        </div>
 
         <div class="item-actions">
           ${item.status === 'uploading' ? html`
-            <button 
-              class="btn-icon btn-icon-neutral"
-              @click=${() => this.pauseUpload(item.id)}
-              title="Pause upload"
-            >
+            <button class="btn-icon btn-icon-neutral" @click=${() => this.pauseUpload(item.id)} title="Pause upload">
               ⏸️
             </button>
-          ` : item.status === 'paused' ? html`
-            <button 
-              class="btn-icon btn-icon-success"
-              @click=${() => this.resumeUpload(item.id)}
-              title="Resume upload"
-            >
+          ` : null}
+          ${item.status === 'paused' ? html`
+            <button class="btn-icon btn-icon-success" @click=${() => this.resumeUpload(item.id)} title="Resume upload">
               ▶️
             </button>
-          ` : item.status === 'error' ? html`
-            <button 
-              class="btn-icon btn-icon-success"
-              @click=${() => this.retryUpload(item.id)}
-              title="Retry upload"
-            >
+          ` : null}
+          ${item.status === 'error' ? html`
+            <button class="btn-icon btn-icon-success" @click=${() => this.retryUpload(item.id)} title="Retry upload">
               🔄
             </button>
-          ` : ''}
-          
+          ` : null}
           ${item.status !== 'completed' ? html`
-            <button 
-              class="btn-icon btn-icon-danger"
-              @click=${() => this.removeFromQueue(item.id)}
-              title="Remove from queue"
-            >
+            <button class="btn-icon btn-icon-danger" @click=${() => this.removeFromQueue(item.id)} title="Remove from queue">
               🗑️
             </button>
-          ` : ''}
+          ` : null}
         </div>
       </div>
     `;
   }
 
+  private getFileIcon(file: File) {
+    if (file.type.startsWith('image/')) {
+      return html`
+        <div class="file-icon image">
+          <img
+            src="${this.getThumbnailUrl(file)}"
+            alt="${file.name}"
+            class="thumbnail-image"
+            @error=${this.handleThumbnailError}
+          />
+        </div>
+      `;
+    }
+
+    if (file.type.startsWith('video/')) {
+      return html`<div class="file-icon video">🎬</div>`;
+    }
+
+    return html`<div class="file-icon">📄</div>`;
+  }
+
   private openFileDialog() {
-    if (this.disabled) return;
-    
+    if (this.disabled) {
+      return;
+    }
+
     if (!this.fileInputRef) {
       this.fileInputRef = this.shadowRoot?.querySelector('.file-input') as HTMLInputElement;
     }
-    
+
     this.fileInputRef?.click();
   }
 
-  private handleDragOver(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!this.isDragOver) {
-      this.isDragOver = true;
+  private handleDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+  }
+
+  private handleDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+  }
+
+  private handleDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+
+    if (this.disabled) {
+      return;
     }
-  }
 
-  private handleDragLeave(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    this.isDragOver = false;
-  }
-
-  private handleDrop(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    this.isDragOver = false;
-
-    if (this.disabled) return;
-
-    const files = Array.from(e.dataTransfer?.files || []);
+    const files = Array.from(event.dataTransfer?.files || []);
     this.addFilesToQueue(files);
   }
 
-  private handleFileSelect(e: Event) {
-    const input = e.target as HTMLInputElement;
+  private handleFileSelect(event: Event) {
+    const input = event.target as HTMLInputElement;
     const files = Array.from(input.files || []);
     this.addFilesToQueue(files);
-    
-    // Reset input so same files can be selected again
     input.value = '';
   }
 
   private addFilesToQueue(files: File[]) {
     const newItems: UploadFile[] = files
-      .filter(file => this.isValidFile(file))
-      .map(file => ({
+      .filter((file) => this.isValidFile(file))
+      .map((file) => ({
         id: generateUUID(),
         file,
         progress: 0,
-        status: 'pending'
+        status: 'pending',
       }));
 
     this.uploadQueue = [...this.uploadQueue, ...newItems];
-    
     this.startNextUpload();
   }
 
   private isValidFile(file: File): boolean {
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-      console.warn('Invalid file type:', file.type);
       return false;
     }
 
-    // Check file size using configurable limit
     if (this.maxFileSize > 0 && file.size > this.maxFileSize) {
-      console.warn('File too large:', file.size, 'Max allowed:', this.maxFileSize);
       return false;
     }
 
@@ -320,10 +314,14 @@ export class SortifyUpload extends LitElement {
   }
 
   private async startNextUpload() {
-    if (this.isUploading) return;
+    if (this.isUploading) {
+      return;
+    }
 
-    const nextItem = this.uploadQueue.find(item => item.status === 'pending');
-    if (!nextItem) return;
+    const nextItem = this.uploadQueue.find((item) => item.status === 'pending');
+    if (!nextItem) {
+      return;
+    }
 
     this.isUploading = true;
     nextItem.status = 'uploading';
@@ -331,7 +329,6 @@ export class SortifyUpload extends LitElement {
 
     try {
       await this.uploadFile(nextItem);
-      // Status is set within uploadFile method based on actual outcome
     } catch (error) {
       nextItem.status = 'error';
       nextItem.error = error instanceof Error ? error.message : 'Upload failed';
@@ -339,15 +336,13 @@ export class SortifyUpload extends LitElement {
 
     this.isUploading = false;
     this.requestUpdate();
-
-    // Start next upload
-    setTimeout(() => this.startNextUpload(), 100);
+    setTimeout(() => this.startNextUpload(), 50);
   }
 
   private async uploadFile(item: UploadFile) {
+    item.abortController = new AbortController();
+
     try {
-      item.abortController = new AbortController();
-      
       const uploadResponse = await apiService.uploadFile(item.file, {
         onProgress: (progress) => {
           item.progress = Math.round(progress * 100);
@@ -358,82 +353,81 @@ export class SortifyUpload extends LitElement {
           item.error = error.message;
           this.requestUpdate();
         },
-        signal: item.abortController.signal
+        signal: item.abortController.signal,
       });
 
       item.uploadResponse = uploadResponse;
-      item.uploadId = uploadResponse.id;
-      
+      item.uploadId = uploadResponse.sessionId;
       item.status = 'processing';
       item.progress = 100;
       this.requestUpdate();
 
-      try {
-        item.status = 'completed';
-        item.processResponse = {
-          id: uploadResponse.sessionId ?? uploadResponse.id ?? '',
-          originalPath: uploadResponse.filename,
-          organizedPath: uploadResponse.filename,
-          metadata: uploadResponse.mediaInfo || {},
-          status: 'completed'
-        };
-        this.requestUpdate();
-        
-      } catch (processError) {
-        item.status = 'error';
-        item.error = processError instanceof Error ? processError.message : 'Processing failed';
-        this.requestUpdate();
-      }
+      item.processResponse = {
+        id: uploadResponse.sessionId,
+        originalPath: item.file.name,
+        organizedPath: uploadResponse.relativePath || uploadResponse.finalPath || uploadResponse.finalFileName || uploadResponse.filename,
+        metadata: uploadResponse.mediaInfo,
+        status: 'completed',
+        duplicate: uploadResponse.duplicate,
+      };
 
-    } catch (uploadError) {
-      if (uploadError instanceof Error && uploadError.message === 'Upload cancelled') {
+      item.status = 'completed';
+      this.requestUpdate();
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Upload cancelled') {
         return;
       }
-      
+
       item.status = 'error';
-      item.error = uploadError instanceof Error ? uploadError.message : 'Upload failed';
+      item.error = error instanceof Error ? error.message : 'Upload failed';
       this.requestUpdate();
     }
   }
 
   private pauseUpload(id: string) {
-    const item = this.uploadQueue.find(item => item.id === id);
-    if (item && item.status === 'uploading') {
-      // Abort the current upload
-      item.abortController?.abort();
-      item.status = 'paused';
-      this.isUploading = false;
-      this.requestUpdate();
+    const item = this.uploadQueue.find((entry) => entry.id === id);
+    if (!item || item.status !== 'uploading') {
+      return;
     }
+
+    item.abortController?.abort();
+    item.status = 'paused';
+    this.isUploading = false;
+    this.requestUpdate();
   }
 
   private resumeUpload(id: string) {
-    const item = this.uploadQueue.find(item => item.id === id);
-    if (item && item.status === 'paused') {
-      item.status = 'pending';
-      item.progress = 0; // Reset progress for retry
-      item.error = undefined;
-      this.requestUpdate();
-      this.startNextUpload();
+    const item = this.uploadQueue.find((entry) => entry.id === id);
+    if (!item || item.status !== 'paused') {
+      return;
     }
+
+    item.status = 'pending';
+    item.progress = 0;
+    item.error = undefined;
+    this.requestUpdate();
+    this.startNextUpload();
   }
 
   private retryUpload(id: string) {
-    const item = this.uploadQueue.find(item => item.id === id);
-    if (item && item.status === 'error') {
-      item.status = 'pending';
-      item.progress = 0; // Reset progress for retry
-      item.error = undefined;
-      item.abortController = undefined; // Clear old abort controller
-      this.requestUpdate();
-      this.startNextUpload();
+    const item = this.uploadQueue.find((entry) => entry.id === id);
+    if (!item || item.status !== 'error') {
+      return;
     }
+
+    item.status = 'pending';
+    item.progress = 0;
+    item.error = undefined;
+    item.abortController = undefined;
+    item.uploadResponse = undefined;
+    item.processResponse = undefined;
+    this.requestUpdate();
+    this.startNextUpload();
   }
 
   private pauseAll() {
     if (this.isUploading) {
-      // Pause current uploads
-      this.uploadQueue.forEach(item => {
+      this.uploadQueue.forEach((item) => {
         if (item.status === 'uploading') {
           item.abortController?.abort();
           item.status = 'paused';
@@ -441,100 +435,159 @@ export class SortifyUpload extends LitElement {
       });
       this.isUploading = false;
     } else {
-      // Resume all paused uploads
-      this.uploadQueue.forEach(item => {
+      this.uploadQueue.forEach((item) => {
         if (item.status === 'paused') {
           item.status = 'pending';
-          item.progress = 0; // Reset progress for retry
+          item.progress = 0;
           item.error = undefined;
         }
       });
       this.startNextUpload();
     }
+
     this.requestUpdate();
   }
 
   private removeFromQueue(id: string) {
-    const item = this.uploadQueue.find(item => item.id === id);
-    if (item) {
-      // Abort upload if it's in progress
-      if (item.status === 'uploading' || item.status === 'processing') {
-        item.abortController?.abort();
-      }
+    const item = this.uploadQueue.find((entry) => entry.id === id);
+    if (item && (item.status === 'uploading' || item.status === 'processing')) {
+      item.abortController?.abort();
     }
-    this.uploadQueue = this.uploadQueue.filter(item => item.id !== id);
+
+    this.uploadQueue = this.uploadQueue.filter((entry) => entry.id !== id);
   }
 
   private clearCompleted() {
-    this.uploadQueue = this.uploadQueue.filter(item => item.status !== 'completed');
+    this.uploadQueue = this.uploadQueue.filter((item) => item.status !== 'completed');
   }
 
   private clearAll() {
-    // Abort any ongoing uploads
-    this.uploadQueue.forEach(item => {
+    this.uploadQueue.forEach((item) => {
       if (item.status === 'uploading' || item.status === 'processing') {
         item.abortController?.abort();
       }
     });
-    
+
     this.uploadQueue = [];
     this.isUploading = false;
   }
 
-  private formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  private getSummary(): UploadSummary {
+    return this.uploadQueue.reduce<UploadSummary>(
+      (summary, item) => {
+        summary.total += 1;
+        if (item.status === 'completed') {
+          summary.completed += 1;
+          if (item.processResponse?.duplicate) {
+            summary.duplicates += 1;
+          }
+        } else if (item.status === 'error') {
+          summary.failed += 1;
+        } else if (item.status === 'processing' || item.status === 'uploading') {
+          summary.processing += 1;
+        } else {
+          summary.pending += 1;
+        }
+        return summary;
+      },
+      { total: 0, completed: 0, duplicates: 0, failed: 0, processing: 0, pending: 0 },
+    );
   }
-  
+
+  private describeQueueState(summary: UploadSummary): string {
+    if (summary.processing > 0) {
+      return `${summary.processing} active • ${summary.pending} waiting`;
+    }
+    if (summary.failed > 0) {
+      return `${summary.failed} need attention`;
+    }
+    if (summary.completed === summary.total && summary.total > 0) {
+      return 'All files processed';
+    }
+    return `${summary.pending} waiting`;
+  }
+
+  private getStatusIcon(status: UploadItemStatus): string {
+    switch (status) {
+      case 'uploading':
+        return '⬆️';
+      case 'processing':
+        return '⚙️';
+      case 'completed':
+        return '✅';
+      case 'error':
+        return '❌';
+      case 'paused':
+        return '⏸️';
+      default:
+        return '⏳';
+    }
+  }
+
+  private getStatusClass(status: UploadItemStatus): string {
+    return `status-${status}`;
+  }
+
+  private getProgressLabel(status: UploadItemStatus): string {
+    switch (status) {
+      case 'uploading':
+        return 'uploading';
+      case 'processing':
+        return 'processing';
+      case 'completed':
+        return 'done';
+      case 'error':
+        return 'failed';
+      case 'paused':
+        return 'paused';
+      default:
+        return 'queued';
+    }
+  }
+
+  private formatFileSize(bytes: number): string {
+    if (bytes === 0) {
+      return '0 B';
+    }
+
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    return `${parseFloat((bytes / 1024 ** unitIndex).toFixed(1))} ${units[unitIndex]}`;
+  }
+
   private formatErrorMessage(error: string): string {
-    // Make error messages more user-friendly
-    if (error.includes('chunk checksum mismatch') || error.includes('verification error')) {
-      return 'Upload failed due to data verification issue. Try again or use a different browser.';
-    }
-    
     if (error.includes('Failed to upload chunk')) {
-      return 'Upload connection issue. Check your network and try again.';
+      return 'Chunk transfer failed. Retry the file after checking the connection.';
     }
-    
+
     if (error.includes('Failed to finalize upload')) {
-      if (error.includes('file checksum mismatch')) {
-        return 'Final verification failed. We support many file formats but some may cause errors, especially on mobile. Try a different file or browser.';
-      }
-      return 'Could not complete upload. Please try again.';
+      return 'The file uploaded, but Sortify could not finalize organization.';
     }
-    
-    if (error.includes('maximum concurrent uploads')) {
-      return 'Too many uploads in progress. Please wait for some to complete before starting new ones.';
+
+    if (error.includes('Upload cancelled')) {
+      return 'Upload paused before completion.';
     }
-    
-    // Truncate very long messages
-    if (error.length > 100) {
-      return error.substring(0, 100) + '...';
+
+    if (error.length > 120) {
+      return `${error.slice(0, 120)}...`;
     }
-    
+
     return error;
   }
 
   private getThumbnailUrl(file: File): string {
     const cacheKey = `${file.name}-${file.size}-${file.lastModified}`;
-    
     if (this.thumbnailCache.has(cacheKey)) {
       return this.thumbnailCache.get(cacheKey)!;
     }
 
     const url = URL.createObjectURL(file);
     this.thumbnailCache.set(cacheKey, url);
-    
     return url;
   }
 
-  private handleThumbnailError = (e: Event) => {
-    const img = e.target as HTMLImageElement;
+  private handleThumbnailError = (event: Event) => {
+    const img = event.target as HTMLImageElement;
     const fileIcon = img.closest('.file-icon');
     if (fileIcon) {
       fileIcon.innerHTML = '🖼️';
@@ -543,7 +596,6 @@ export class SortifyUpload extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    // Clean up object URLs to prevent memory leaks
     for (const url of this.thumbnailCache.values()) {
       URL.revokeObjectURL(url);
     }
