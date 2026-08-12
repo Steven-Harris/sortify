@@ -7,9 +7,9 @@ describe('ApiService', () => {
 
   beforeEach(() => {
     mockFetch = vi.fn();
-    global.fetch = mockFetch as typeof fetch;
+    globalThis.fetch = mockFetch as typeof fetch;
 
-    Object.defineProperty(global, 'crypto', {
+    Object.defineProperty(globalThis, 'crypto', {
       value: {
         subtle: {
           digest: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4]).buffer),

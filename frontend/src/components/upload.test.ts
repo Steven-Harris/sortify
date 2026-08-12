@@ -76,6 +76,7 @@ describe('SortifyUpload', () => {
       file,
       progress: 0,
       status: 'pending',
+      processResponse: undefined,
     };
 
     await (element as any).uploadFile(item);
