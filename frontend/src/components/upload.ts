@@ -1,8 +1,32 @@
-import { LitElement, html, unsafeCSS } from 'lit';
+import { LitElement, html, svg, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { apiService, type ProcessResponse, type UploadResponse } from '../services/api.js';
 import { generateUUID } from '../utils/uuid.js';
 import uploadStyles from '../styles/upload.css?inline';
+
+const icon = (paths: unknown, strokeWidth = 2) => html`
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    ${paths}
+  </svg>
+`;
+
+const ICONS = {
+  upload: svg`<path d="M12 16V4" /><path d="m7 9 5-5 5 5" /><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />`,
+  image: svg`<rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9.5" r="1.5" /><path d="m21 16-5-5L6 20" />`,
+  video: svg`<rect x="2" y="5" width="14" height="14" rx="2" /><path d="m22 8-6 4 6 4Z" />`,
+  file: svg`<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" />`,
+  pause: svg`<path d="M10 5v14" /><path d="M14 5v14" />`,
+  play: svg`<path d="M7 4.5v15l12-7.5Z" />`,
+  retry: svg`<path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 4v5h-5" />`,
+  trash: svg`<path d="M4 7h16" /><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /><path d="M6 7l1 13h10l1-13" />`,
+  broom: svg`<path d="M4 20h16" /><path d="M9 16 5 20" /><path d="M15 4 9 10l5 5 6-6Z" />`,
+  clock: svg`<circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />`,
+  check: svg`<path d="M20 6 9 17l-5-5" />`,
+  alert: svg`<path d="M12 8v5" /><path d="M12 17h.01" /><circle cx="12" cy="12" r="9" />`,
+  gear: svg`<circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />`,
+  folder: svg`<path d="M4 7V5.5A1.5 1.5 0 0 1 5.5 4H9l2 2h7.5A1.5 1.5 0 0 1 20 7.5V8" /><path d="M3 10h18l-1.4 8.3a2 2 0 0 1-2 1.7H6.4a2 2 0 0 1-2-1.7Z" />`,
+} as const;
 
 type UploadItemStatus = 'pending' | 'uploading' | 'completed' | 'error' | 'paused' | 'processing';
 
@@ -65,21 +89,20 @@ export class SortifyUpload extends LitElement {
         >
           <div class="dropzone-content">
             <div class="dropzone-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              ${icon(ICONS.upload, 2.2)}
             </div>
             <h3 class="dropzone-title">Bulk upload your photo and video library</h3>
             <p class="dropzone-subtitle">
-              Sortify now treats uploads as a queue, verifies each file, skips exact duplicates, and organizes by trusted metadata first.
+              Sortify treats uploads as a queue, verifies each file, skips exact duplicates, and
+              organizes by trusted metadata first.
             </p>
             <button class="btn-primary" ?disabled=${this.disabled}>
-              Choose Files
+              Choose files
             </button>
+            <p class="dropzone-hint">
+              or drop them anywhere in this panel — <kbd>JPG</kbd> <kbd>HEIC</kbd> <kbd>PNG</kbd>
+              <kbd>MP4</kbd> <kbd>MOV</kbd>
+            </p>
           </div>
         </div>
 
@@ -93,19 +116,19 @@ export class SortifyUpload extends LitElement {
 
         ${summary.total > 0 ? html`
           <div class="upload-summary">
-            <div class="summary-card">
+            <div class="summary-card accent-neutral">
               <span class="summary-value">${summary.total}</span>
               <span class="summary-label">Queued</span>
             </div>
-            <div class="summary-card">
+            <div class="summary-card accent-success">
               <span class="summary-value">${summary.completed}</span>
               <span class="summary-label">Stored</span>
             </div>
-            <div class="summary-card">
+            <div class="summary-card accent-info">
               <span class="summary-value">${summary.duplicates}</span>
               <span class="summary-label">Duplicates skipped</span>
             </div>
-            <div class="summary-card">
+            <div class="summary-card accent-danger">
               <span class="summary-value">${summary.failed}</span>
               <span class="summary-label">Failed</span>
             </div>
@@ -116,20 +139,21 @@ export class SortifyUpload extends LitElement {
           <div class="upload-queue">
             <div class="queue-header">
               <h4 class="queue-title">
-                Upload Queue
+                Upload queue
                 <span class="queue-subtitle">
                   ${this.describeQueueState(summary)}
                 </span>
               </h4>
               <div class="queue-actions">
                 <button class="btn-secondary" @click=${this.pauseAll}>
-                  ${this.isUploading ? '⏸️ Pause Queue' : '▶️ Resume Queue'}
+                  ${this.isUploading ? icon(ICONS.pause) : icon(ICONS.play)}
+                  ${this.isUploading ? 'Pause queue' : 'Resume queue'}
                 </button>
                 <button class="btn-secondary" @click=${this.clearCompleted}>
-                  🗑️ Clear Completed
+                  ${icon(ICONS.broom)} Clear completed
                 </button>
                 <button class="btn-danger" @click=${this.clearAll}>
-                  ❌ Clear All
+                  ${icon(ICONS.trash)} Clear all
                 </button>
               </div>
             </div>
@@ -138,9 +162,9 @@ export class SortifyUpload extends LitElement {
           </div>
         ` : html`
           <div class="empty-state">
-            <div class="empty-state-icon">📂</div>
-            <p class="empty-state-text">No files selected yet</p>
-            <p style="font-size: 0.875rem; margin-top: 0.5rem; opacity: 0.8;">
+            <div class="empty-state-icon">${icon(ICONS.folder)}</div>
+            <p class="empty-state-text">Nothing in the queue yet</p>
+            <p class="empty-state-hint">
               Drop a batch above or click to browse your library.
             </p>
           </div>
@@ -179,7 +203,7 @@ export class SortifyUpload extends LitElement {
           ` : null}
           ${item.error ? html`
             <div class="error-message">
-              <span class="error-icon">⚠️</span>
+              <span class="error-icon">${icon(ICONS.alert)}</span>
               <span>${this.formatErrorMessage(item.error)}</span>
             </div>
           ` : null}
@@ -194,27 +218,32 @@ export class SortifyUpload extends LitElement {
 
         <div class="status-badge ${this.getStatusClass(item.status)}" title="${item.status}">
           ${this.getStatusIcon(item.status)}
+          <span>${this.getProgressLabel(item.status)}</span>
         </div>
 
         <div class="item-actions">
           ${item.status === 'uploading' ? html`
-            <button class="btn-icon btn-icon-neutral" @click=${() => this.pauseUpload(item.id)} title="Pause upload">
-              ⏸️
+            <button class="btn-icon btn-icon-neutral" @click=${() => this.pauseUpload(item.id)}
+              title="Pause upload" aria-label="Pause upload">
+              ${icon(ICONS.pause)}
             </button>
           ` : null}
           ${item.status === 'paused' ? html`
-            <button class="btn-icon btn-icon-success" @click=${() => this.resumeUpload(item.id)} title="Resume upload">
-              ▶️
+            <button class="btn-icon btn-icon-success" @click=${() => this.resumeUpload(item.id)}
+              title="Resume upload" aria-label="Resume upload">
+              ${icon(ICONS.play)}
             </button>
           ` : null}
           ${item.status === 'error' ? html`
-            <button class="btn-icon btn-icon-success" @click=${() => this.retryUpload(item.id)} title="Retry upload">
-              🔄
+            <button class="btn-icon btn-icon-success" @click=${() => this.retryUpload(item.id)}
+              title="Retry upload" aria-label="Retry upload">
+              ${icon(ICONS.retry)}
             </button>
           ` : null}
           ${item.status !== 'completed' ? html`
-            <button class="btn-icon btn-icon-danger" @click=${() => this.removeFromQueue(item.id)} title="Remove from queue">
-              🗑️
+            <button class="btn-icon btn-icon-danger" @click=${() => this.removeFromQueue(item.id)}
+              title="Remove from queue" aria-label="Remove from queue">
+              ${icon(ICONS.trash)}
             </button>
           ` : null}
         </div>
@@ -237,10 +266,10 @@ export class SortifyUpload extends LitElement {
     }
 
     if (file.type.startsWith('video/')) {
-      return html`<div class="file-icon video">🎬</div>`;
+      return html`<div class="file-icon video">${icon(ICONS.video)}</div>`;
     }
 
-    return html`<div class="file-icon">📄</div>`;
+    return html`<div class="file-icon">${icon(ICONS.file)}</div>`;
   }
 
   private openFileDialog() {
@@ -507,20 +536,20 @@ export class SortifyUpload extends LitElement {
     return `${summary.pending} waiting`;
   }
 
-  private getStatusIcon(status: UploadItemStatus): string {
+  private getStatusIcon(status: UploadItemStatus) {
     switch (status) {
       case 'uploading':
-        return '⬆️';
+        return icon(ICONS.upload);
       case 'processing':
-        return '⚙️';
+        return icon(ICONS.gear);
       case 'completed':
-        return '✅';
+        return icon(ICONS.check);
       case 'error':
-        return '❌';
+        return icon(ICONS.alert);
       case 'paused':
-        return '⏸️';
+        return icon(ICONS.pause);
       default:
-        return '⏳';
+        return icon(ICONS.clock);
     }
   }
 
@@ -590,7 +619,12 @@ export class SortifyUpload extends LitElement {
     const img = event.target as HTMLImageElement;
     const fileIcon = img.closest('.file-icon');
     if (fileIcon) {
-      fileIcon.innerHTML = '🖼️';
+      fileIcon.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<rect x="3" y="4" width="18" height="16" rx="2"></rect>' +
+        '<circle cx="8.5" cy="9.5" r="1.5"></circle>' +
+        '<path d="m21 16-5-5L6 20"></path></svg>';
     }
   };
 
