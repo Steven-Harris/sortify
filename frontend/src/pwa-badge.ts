@@ -116,36 +116,65 @@ export class PwaBadge extends LitElement {
 
     #pwa-toast {
         visibility: hidden;
+        opacity: 0;
+        transform: translateY(10px);
         position: fixed;
         right: 0;
         bottom: 0;
         margin: 16px;
-        padding: 12px;
-        border: 1px solid #8885;
-        border-radius: 4px;
-        z-index: 1;
+        padding: 14px 16px;
+        max-width: min(22rem, calc(100vw - 32px));
+        border: 1px solid var(--stroke-strong, rgba(255, 255, 255, 0.16));
+        border-radius: var(--radius-md, 0.875rem);
+        background: rgba(12, 17, 32, 0.86);
+        backdrop-filter: blur(16px) saturate(160%);
+        -webkit-backdrop-filter: blur(16px) saturate(160%);
+        color: var(--text-primary, #f2f6ff);
+        font-family: var(--font-body, system-ui, sans-serif);
+        font-size: 0.875rem;
+        z-index: 100;
         text-align: left;
-        box-shadow: 3px 4px 5px 0 #8885;
+        box-shadow: var(--shadow-lg, 0 30px 60px -25px rgba(2, 4, 12, 1));
         display: grid;
+        transition: opacity 0.25s var(--ease, ease), transform 0.25s var(--ease, ease),
+          visibility 0.25s var(--ease, ease);
     }
     #pwa-toast .message {
-        margin-bottom: 8px;
+        margin-bottom: 12px;
+        color: var(--text-secondary, #a8b6d1);
+        line-height: 1.5;
     }
     #pwa-toast .buttons {
         display: flex;
+        gap: 8px;
     }
     #pwa-toast button {
-        border: 1px solid #8885;
+        font-family: inherit;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: 6px 14px;
+        cursor: pointer;
+        border: 1px solid var(--stroke, rgba(255, 255, 255, 0.09));
+        background: var(--surface-1, rgba(255, 255, 255, 0.05));
+        color: var(--text-secondary, #a8b6d1);
         outline: none;
-        margin-right: 5px;
-        border-radius: 2px;
-        padding: 3px 10px;
+        transition: background 0.2s var(--ease, ease), color 0.2s var(--ease, ease);
+    }
+    #pwa-toast button:hover {
+        background: var(--surface-2, rgba(255, 255, 255, 0.08));
+        color: var(--text-primary, #f2f6ff);
     }
     #pwa-toast.show {
         visibility: visible;
+        opacity: 1;
+        transform: none;
     }
     button#pwa-refresh {
         display: none;
+        background: var(--accent-gradient, linear-gradient(120deg, #22d3ee, #6366f1));
+        color: #06070f;
+        border-color: transparent;
     }
     #pwa-toast.show.refresh button#pwa-refresh {
         display: block;

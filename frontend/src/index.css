@@ -1,95 +1,155 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Schibsted Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Schibsted Grotesk', system-ui, sans-serif;
+  --font-body: 'Schibsted Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #0f172a;
+  color: #e6edf7;
+  background-color: #05070f;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Color Variables */
-  --primary-400: #60a5fa;
-  --primary-500: #3b82f6;
-  --primary-600: #2563eb;
-  --slate-50: #f8fafc;
-  --slate-100: #f1f5f9;
-  --slate-200: #e2e8f0;
-  --slate-300: #cbd5e1;
-  --slate-400: #94a3b8;
-  --slate-500: #64748b;
-  --slate-600: #475569;
-  --slate-700: #334155;
-  --slate-800: #1e293b;
-  --slate-900: #0f172a;
-  --green-400: #4ade80;
-  --green-500: #22c55e;
-  --red-400: #f87171;
-  --red-500: #ef4444;
-  --yellow-400: #facc15;
-  --yellow-500: #eab308;
+  /* ---- Brand palette ---- */
+  --brand-violet: #8b5cf6;
+  --brand-indigo: #6366f1;
+  --brand-cyan: #22d3ee;
+  --brand-blue: #3b82f6;
+  --brand-pink: #f472b6;
+
+  --accent-gradient: linear-gradient(120deg, #22d3ee 0%, #6366f1 45%, #c084fc 100%);
+  --accent-gradient-soft: linear-gradient(120deg, rgba(34, 211, 238, 0.18), rgba(139, 92, 246, 0.18));
+
+  /* ---- Surfaces (glass) ---- */
+  --surface-0: rgba(255, 255, 255, 0.03);
+  --surface-1: rgba(255, 255, 255, 0.05);
+  --surface-2: rgba(255, 255, 255, 0.08);
+  --surface-solid: #0c1120;
+  --stroke: rgba(255, 255, 255, 0.09);
+  --stroke-strong: rgba(255, 255, 255, 0.16);
+
+  /* ---- Text ---- */
+  --text-primary: #f2f6ff;
+  --text-secondary: #a8b6d1;
+  --text-muted: #6f7f9c;
+
+  /* ---- Feedback ---- */
+  --success: #34d399;
+  --danger: #fb7185;
+  --warning: #fbbf24;
+  --info: #38bdf8;
+
+  /* ---- Radii / motion / elevation ---- */
+  --radius-sm: 0.625rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --shadow-sm: 0 1px 2px rgba(2, 4, 12, 0.4);
+  --shadow-md: 0 12px 30px -12px rgba(2, 4, 12, 0.9);
+  --shadow-lg: 0 30px 60px -25px rgba(2, 4, 12, 1);
+  --glow: 0 0 0 1px rgba(139, 92, 246, 0.35), 0 18px 45px -18px rgba(99, 102, 241, 0.75);
+
+  /* ---- Legacy aliases, remapped to the new palette ---- */
+  --primary-400: #a78bfa;
+  --primary-500: #8b5cf6;
+  --primary-600: #6d28d9;
+  --slate-50: #f2f6ff;
+  --slate-100: #e6edf7;
+  --slate-200: #cbd6ea;
+  --slate-300: #a8b6d1;
+  --slate-400: #8494b3;
+  --slate-500: #6f7f9c;
+  --slate-600: rgba(255, 255, 255, 0.16);
+  --slate-700: rgba(255, 255, 255, 0.09);
+  --slate-800: rgba(255, 255, 255, 0.05);
+  --slate-900: #070b16;
+  --green-400: #6ee7b7;
+  --green-500: #34d399;
+  --red-400: #fda4af;
+  --red-500: #fb7185;
+  --yellow-400: #fcd34d;
+  --yellow-500: #fbbf24;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 a {
   font-weight: 500;
-  color: #60a5fa;
+  color: var(--brand-cyan);
   text-decoration: inherit;
+  transition: color 0.2s var(--ease);
 }
 
 a:hover {
-  color: #3b82f6;
+  color: #67e8f9;
 }
 
+html {
+  background-color: #05070f;
+}
+
+html,
 body {
   margin: 0;
-  padding: 0 ;
+  padding: 0;
   min-width: 320px;
-  min-height: 100vh;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  border: none;
-  outline: none;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #f8fafc;
+  color: var(--text-primary);
+  font-family: var(--font-body);
 }
 
-/* Reusable Button Styles */
-.btn {
-  border: none;
-  border-radius: 0.5rem; /* rounded-lg */
-  padding: 0.5rem 1rem; /* py-2 px-4 */
-  font-size: 0.875rem; /* text-sm */
-  font-weight: 500; /* font-medium */
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-  font-family: inherit;
+/* body must stay transparent so the aurora layer below it shows through */
+body {
+  background-color: transparent;
 }
 
-.btn-secondary {
-  background: var(--slate-700);
-  color: var(--slate-300);
-  border: 1px solid var(--slate-600);
+/* Ambient aurora backdrop behind the whole app */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -25%;
+  z-index: -2;
+  background:
+    radial-gradient(38rem 38rem at 18% 12%, rgba(99, 102, 241, 0.5), transparent 62%),
+    radial-gradient(32rem 32rem at 82% 8%, rgba(34, 211, 238, 0.38), transparent 60%),
+    radial-gradient(40rem 40rem at 62% 96%, rgba(192, 132, 252, 0.4), transparent 62%),
+    radial-gradient(28rem 28rem at 8% 88%, rgba(244, 114, 182, 0.26), transparent 60%);
+  filter: blur(20px);
+  animation: aurora-drift 26s ease-in-out infinite alternate;
+  pointer-events: none;
 }
 
-.btn-secondary:hover {
-  background: var(--slate-600);
-  color: var(--slate-100);
-  transform: translateY(-1px);
+/* Vignette to settle the aurora and keep foreground contrast high */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(ellipse 120% 95% at 50% 5%, transparent 25%, rgba(5, 7, 15, 0.55) 100%);
+  pointer-events: none;
 }
 
-/* Common Animations */
+@keyframes aurora-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2%, -2%, 0) scale(1.06); }
+  100% { transform: translate3d(-2%, 2%, 0) scale(1.02); }
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50% { opacity: 0.45; }
 }
 
 @keyframes spin {
@@ -97,7 +157,38 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* App Layout Styles - Only global styles kept here */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
 
-/* Upload Component Styles (if needed globally) */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+  background-clip: content-box;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-cyan);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
