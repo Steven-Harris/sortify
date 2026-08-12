@@ -21,7 +21,7 @@ jobs:
     name: Code Security Scan
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Run Trivy filesystem scanner
       uses: aquasecurity/trivy-action@v0.35.0
@@ -32,13 +32,13 @@ jobs:
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
 
     - name: Set up Go for Gosec
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
         go-version: 'stable'
         check-latest: true
@@ -55,7 +55,7 @@ jobs:
         ls -la gosec-results.sarif || echo "gosec-results.sarif not found"
 
     - name: Upload Gosec scan results
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: always()
       with:
         sarif_file: 'gosec-results.sarif'
@@ -64,7 +64,7 @@ jobs:
     name: Dependency Security Scan
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Run Trivy dependency scanner
       uses: aquasecurity/trivy-action@v0.35.0
@@ -80,13 +80,13 @@ jobs:
     name: Docker Image Security Scan
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
 
     - name: Build Docker image for security scanning
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: .
         load: true
@@ -101,7 +101,7 @@ jobs:
         severity: 'MEDIUM,HIGH,CRITICAL'
 
     - name: Upload Docker image scan results
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: always()
       with:
         sarif_file: 'trivy-docker-results.sarif'
