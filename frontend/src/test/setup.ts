@@ -1,7 +1,7 @@
 import { vi } from 'vitest'
 
 // Global fetch mock
-global.fetch = vi.fn(() =>
+globalThis.fetch = vi.fn(() =>
   Promise.resolve({
     ok: true,
     status: 200,
@@ -111,15 +111,15 @@ const mockSubtle = {
 }
 
 // Global assignments
-global.File = MockFile as any
-global.FileList = MockFileList as any
-global.FormData = MockFormData as any
+globalThis.File = MockFile as any
+globalThis.FileList = MockFileList as any
+globalThis.FormData = MockFormData as any
 
 // Mock crypto - handle both global and Object.defineProperty
-if (typeof global.crypto === 'undefined') {
-  global.crypto = { subtle: mockSubtle } as any
+if (typeof globalThis.crypto === 'undefined') {
+  globalThis.crypto = { subtle: mockSubtle } as any
 } else {
-  Object.defineProperty(global.crypto, 'subtle', {
+  Object.defineProperty(globalThis.crypto, 'subtle', {
     value: mockSubtle,
     writable: true,
     configurable: true
@@ -127,8 +127,8 @@ if (typeof global.crypto === 'undefined') {
 }
 
 // Mock URL - jsdom should provide this, but ensure it's available
-if (typeof global.URL === 'undefined') {
-  global.URL = class MockURL {
+if (typeof globalThis.URL === 'undefined') {
+  globalThis.URL = class MockURL {
     href: string
     origin: string
     protocol: string
@@ -164,8 +164,8 @@ if (typeof global.URL === 'undefined') {
 }
 
 // Mock URLSearchParams if not available
-if (typeof global.URLSearchParams === 'undefined') {
-  global.URLSearchParams = class MockURLSearchParams {
+if (typeof globalThis.URLSearchParams === 'undefined') {
+  globalThis.URLSearchParams = class MockURLSearchParams {
     private params = new Map<string, string>()
 
     constructor(_init?: string | URLSearchParams | Record<string, string>) {
@@ -195,8 +195,8 @@ if (typeof global.URLSearchParams === 'undefined') {
 }
 
 // Mock AbortController if not available
-if (typeof global.AbortController === 'undefined') {
-  global.AbortController = class MockAbortController {
+if (typeof globalThis.AbortController === 'undefined') {
+  globalThis.AbortController = class MockAbortController {
     signal: AbortSignal
 
     constructor() {
@@ -221,7 +221,7 @@ if (typeof global.AbortController === 'undefined') {
 }
 
 // Mock XMLHttpRequest for upload progress
-global.XMLHttpRequest = class MockXMLHttpRequest {
+globalThis.XMLHttpRequest = class MockXMLHttpRequest {
   upload = {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
@@ -253,7 +253,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
 })
 
 // Mock image loading
-global.Image = class MockImage {
+globalThis.Image = class MockImage {
   onload: (() => void) | null = null
   onerror: (() => void) | null = null
   src = ''
@@ -268,8 +268,8 @@ global.Image = class MockImage {
 } as any
 
 // Mock DragEvent if not available
-if (typeof global.DragEvent === 'undefined') {
-  global.DragEvent = class MockDragEvent extends Event {
+if (typeof globalThis.DragEvent === 'undefined') {
+  globalThis.DragEvent = class MockDragEvent extends Event {
     dataTransfer: DataTransfer | null
 
     constructor(type: string, eventInitDict?: DragEventInit) {
@@ -290,7 +290,7 @@ if (typeof global.DragEvent === 'undefined') {
 }
 
 // Mock createObjectURL and revokeObjectURL
-if (typeof global.URL.createObjectURL === 'undefined') {
-  global.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/test')
-  global.URL.revokeObjectURL = vi.fn()
+if (typeof globalThis.URL.createObjectURL === 'undefined') {
+  globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/test')
+  globalThis.URL.revokeObjectURL = vi.fn()
 }
