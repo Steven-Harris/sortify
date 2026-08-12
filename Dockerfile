@@ -9,7 +9,7 @@ WORKDIR /app
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 
 # Install pnpm and dependencies with optimizations
-RUN npm install -g pnpm && \
+RUN npm install -g pnpm@9.15.9 && \
     # Reduce Sharp installation time by using pre-built binaries
     pnpm config set sharp-libvips-binary-host "https://github.com/lovell/sharp-libvips/releases/download" && \
     # Install with optimizations
