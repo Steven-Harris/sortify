@@ -107,7 +107,7 @@ Sortify supports uploading files from mobile devices. Some features to be aware 
 
 ### Prerequisites
 
-- [Go 1.22+](https://golang.org/dl/)
+- [Go 1.24+](https://golang.org/dl/)
 - [Node.js 18+](https://nodejs.org/)
 - [pnpm](https://pnpm.io/)
 - [just](https://github.com/casey/just) (optional, for task runner)
