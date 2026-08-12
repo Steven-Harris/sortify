@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SortifyUpload, type UploadFile } from './upload.js';
+import { SortifyUpload } from './upload.js';
 
 vi.mock('../services/api.js', () => ({
   apiService: {
@@ -71,7 +71,7 @@ describe('SortifyUpload', () => {
 
   it('maps upload results into process responses', async () => {
     const file = new File(['test'], 'IMG_20240315_143022.jpg', { type: 'image/jpeg' });
-    const item: UploadFile = {
+    const item: any = {
       id: 'item-1',
       file,
       progress: 0,

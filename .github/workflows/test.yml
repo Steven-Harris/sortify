@@ -60,6 +60,11 @@ jobs:
       with:
         version: 9.15.9
 
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9.15.9
+
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
