@@ -14,20 +14,20 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.5",
     "lit": "^3.3.3",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.5"
   },
   "devDependencies": {
     "@types/jsdom": "^30.0.0",
     "@vite-pwa/assets-generator": "^1.0.2",
     "@vitest/coverage-v8": "^4.1.10",
     "@vitest/ui": "^4.1.10",
-    "@web/test-runner": "^1.0.0",
-    "@web/test-runner-playwright": "^1.0.0",
+    "@web/test-runner": "^1.0.1",
+    "@web/test-runner-playwright": "^1.0.1",
     "jsdom": "^30.0.1",
     "typescript": "~7.0.2",
-    "vite": "^8.2.2",
+    "vite": "^8.3.8",
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.1.10",
     "workbox-window": "^7.4.1"
